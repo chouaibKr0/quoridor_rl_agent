@@ -1,0 +1,14 @@
+# Core RL dependencies
+stable-baselines3[extra]>=2.0.0
+sb3-contrib>=2.0.0
+gymnasium>=0.29.0
+
+# Deep learning
+torch>=2.0.0
+
+# Utilities
+numpy>=1.24.0
+tensorboard>=2.14.0
+
+# Game dependencies
+pygame>=2.5.0
