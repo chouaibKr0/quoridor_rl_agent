@@ -44,17 +44,46 @@ class QuoridorStateBuilder:
                 if distances[nr, nc] == self.max_dist: # Not visited
                     distances[nr, nc] = dist + 1
                     queue.append((nr, nc))
-        #TODO          
-        # Invert/Normalize: Close to goal = 1.0, Far = 0.0
-        # Or just Raw Normalized Distance: Close = 0.0, Far = 1.0
-        # Let's use Normalized Distance (0 means at goal)
+        # Normalize: Close = 0.0, Far/Unreachable = 1.0
+        # (i.e., keep raw normalized distances where 0 means at goal)
         return distances / self.max_dist
 
     def _get_valid_neighbors(self, r:int, c:int, walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]]):
-        # Placeholder for your wall collision logic
         # Returns list of (r, c) tuples
-        moves = []
-        #TODO ... logic to check walls_h and walls_v ...
+        # Wall representation:
+        # - Horizontal wall at (wr, wc) blocks movement between (wr, wc)<->(wr+1, wc)
+        #   AND between (wr, wc+1)<->(wr+1, wc+1).
+        # - Vertical wall at (wr, wc) blocks movement between (wr, wc)<->(wr, wc+1)
+        #   AND between (wr+1, wc)<->(wr+1, wc+1).
+        
+        moves: list[tuple[int, int]] = []
+        walls_h_set = set(walls_h)
+        walls_v_set = set(walls_v)
+
+        # Up: (r-1, c)
+        if r > 0:
+            # Blocked if H-wall at (r-1, c) OR (r-1, c-1)
+            if (r - 1, c) not in walls_h_set and (r - 1, c - 1) not in walls_h_set:
+                moves.append((r - 1, c))
+
+        # Down: (r+1, c)
+        if r < self.height - 1:
+            # Blocked if H-wall at (r, c) OR (r, c-1)
+            if (r, c) not in walls_h_set and (r, c - 1) not in walls_h_set:
+                moves.append((r + 1, c))
+
+        # Left: (r, c-1)
+        if c > 0:
+            # Blocked if V-wall at (r, c-1) OR (r-1, c-1)
+            if (r, c - 1) not in walls_v_set and (r - 1, c - 1) not in walls_v_set:
+                moves.append((r, c - 1))
+
+        # Right: (r, c+1)
+        if c < self.width - 1:
+            # Blocked if V-wall at (r, c) OR (r-1, c)
+            if (r, c) not in walls_v_set and (r - 1, c) not in walls_v_set:
+                moves.append((r, c + 1))
+
         return moves
 
     def build_state(self, p1_pos:tuple[int, int], p2_pos:tuple[int, int], walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]]):
@@ -97,46 +126,48 @@ class QuoridorStateBuilder:
         state[:, :, 5] = dist_map_p2
 
         return state
-    def get_shortest_path_length(self, start_pos: tuple[int, int], goal_row: int, walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]]) -> int:
-        #TODO: use heatmap to get shortest path length from start_pos to goal_row
-        ...
-    
 
 
 class QuoridorGame:
-    # TODO: Review and recheck the logic, especially the reward shaping part.
+    # Action Space: 140
+    # 0-3: Step N, E, S, W
+    # 4-7: Jump N, E, S, W (Straight jump over opponent)
+    # 8-11: Slide NE, NW, SE, SW (Diagonal move)
+    # 12-75: Horizontal Walls (64 positions)
+    # 76-139: Vertical Walls (64 positions)
+
     def __init__(self, walls_per_player=10):
         self.initial_walls = walls_per_player
-        self.state_builder = QuoridorStateBuilder() # The helper class we defined before
+        self.state_builder = QuoridorStateBuilder() 
         self.reset()
-    def get_path_len(self, pos, goal_row) -> int:
-        """Returns the shortest path length (int) from pos to goal_row."""
-        # Use your BFS logic here. 
-        # Return 999 if no path (though technically that's illegal in Quoridor)
-        return self.state_builder.get_shortest_path_length(pos, goal_row, self.walls_h, self.walls_v)
+
     def reset(self):
         """
         Resets the INTERNAL game state. 
         Returns the initial OBSERVATION (the tensor).
         """
-        # 1. Internal Logic Variables (Lightweight)
         self.p1_pos = (0, 4)  # Row 0, Col 4
         self.p2_pos = (8, 4)  # Row 8, Col 4
         self.p1_walls_left = self.initial_walls
         self.p2_walls_left = self.initial_walls
-        self.walls_h = []  # Set of (r, c) tuples
-        self.walls_v = []  # Set of (r, c) tuples
+        self.walls_h = []  # List of (r, c)
+        self.walls_v = []  # List of (r, c)
         self.current_player = 1 
         self.done = False
-        self.p1_dist_prev = self.get_path_len(self.p1_pos, 8) 
-        self.p2_dist_prev = self.get_path_len(self.p2_pos, 0)
-        # 2. Return the first observation for the agent
-        return self._get_observation()
+        
+        # Calculate initial distances
+        # Note: We use existing methods but need current state
+        state = self._get_observation()
+        # Channel 4 is P1 dist map, Channel 5 is P2 dist map
+        # Dist map is normalized. 
+        self.p1_dist_prev = self._get_path_len(self.p1_pos, state[:,:,4])
+        self.p2_dist_prev = self._get_path_len(self.p2_pos, state[:,:,5])
+        
+        return state
 
     def _get_observation(self):
         """
         Helper to build the 9x9x6 Tensor from internal variables.
-        This is called by reset() and step().
         """
         return self.state_builder.build_state(
             self.p1_pos, 
@@ -144,7 +175,7 @@ class QuoridorGame:
             self.walls_h, 
             self.walls_v
         )
-
+    
     def step(self, action):
         """
         Executes a move.
@@ -153,80 +184,256 @@ class QuoridorGame:
         if self.done:
             raise ValueError("Game is over. Call reset()!")
 
-        # 1. Parse and Execute Action (Update internal vars)
-        # (We will implement the logic inside _apply_move later)
+        # 1. Parse and Execute Action
         valid_move = self._apply_move(action)
-
-        # 2. Calculate Reward
-
-        # A. Calculate NEW distances (after the move)
-        p1_dist_curr = self.get_path_len(self.p1_pos, 8)
-        p2_dist_curr = self.get_path_len(self.p2_pos, 0)
         
-        # B. Calculate the Difference (The "Delta")
-        # Did P1 get closer? (Old - New) -> Positive is good
-        p1_progress = self.p1_dist_prev - p1_dist_curr
-        p1_damage = p1_dist_curr - self.p1_dist_prev
-        # Did P2 get pushed back? (New - Old) -> Positive is good
-        p2_progress = self.p2_dist_prev - p2_dist_curr
-        p2_damage = p2_dist_curr - self.p2_dist_prev
-        
-        # C. Your Formula
-        # If I am Player 1:
-        if self.current_player == 1:
-            # Reward = (My Progress) + (Damage to Opponent)
-            shaping = 0.05 * (p1_progress + p2_damage)
-        else:
-            # If I am Player 2, logic is flipped
-            shaping = 0.05 * (p2_progress + p1_damage)
+        if not valid_move:
+             # This should ideally be blocked by action masking, but as a fallback:
+             # Use a heavy penalty and standard return
+             obs = self._get_observation()
+             return obs, -1.0, self.done, {"error": "Invalid Move"}
 
-        # D. Add to standard rewards
-        reward = -0.01 + shaping
-        if self._check_win():
-            reward += 1.0
+        # 2. Update distances for Reward Calculation
+        state = self._get_observation()
+        # Note: state builder returns normalized distances
+        p1_dist_curr = self._get_path_len(self.p1_pos, state[:, :, 4])
+        p2_dist_curr = self._get_path_len(self.p2_pos, state[:, :, 5])
+
+        # 3. Calculate Reward
+        reward = self._calculate_reward(valid_move, p1_dist_curr, p2_dist_curr)
 
         self.p1_dist_prev = p1_dist_curr
         self.p2_dist_prev = p2_dist_curr
 
-
-
-        # 3. Check Game Over
+        # 4. Check Game Over
         if self._check_win():
             self.done = True
+            # Bonus for winning is added in calculate_reward
             
-        # 4. Switch Player (if game not over)
+        # 5. Switch Player (if game not over)
         if not self.done:
             self.current_player = 2 if self.current_player == 1 else 1
 
-        # 5. Return the standard RL tuple
-        # Observation (Tensor), Reward (Float), Done (Bool), Info (Dict)
-        return self._get_observation(), reward, self.done, {}
+        return state, reward, self.done, {}
 
     def _apply_move(self, action):
-        """Updates p1_pos, walls_h, etc. based on action index."""
-        # Logic to decode 'action' integer to a game move
-        # Update self.p1_pos or self.walls_h...
-        return True # or False if move was somehow invalid (though we will mask those)
+        """Updates internal state based on action index. Returns True if valid."""
+        # Action Decoding
+        # 0-11: Pawn Moves
+        if 0 <= action <= 11:
+            target_pos = self._decode_pawn_move(action)
+            if target_pos is None:
+                return False
+            
+            # Update position
+            if self.current_player == 1:
+                self.p1_pos = target_pos
+            else:
+                self.p2_pos = target_pos
+            return True
 
-    def _calculate_reward(self, valid_move):
-        # Your +1/-1 logic goes here
+        # 12-139: Wall Placements
+        # Offset by 12
+        w_action = action - 12
+        if self.current_player == 1 and self.p1_walls_left <= 0:
+            return False
+        if self.current_player == 2 and self.p2_walls_left <= 0:
+            return False
+
+        wall_type = 'h' if w_action < 64 else 'v'
+        idx = w_action if w_action < 64 else w_action - 64
+        
+        # Decode (r, c) from idx (0..63)
+        # r in 0..7, c in 0..7
+        r = idx // 8
+        c = idx % 8
+        
+        # Add Wall
+        if wall_type == 'h':
+            self.walls_h.append((r, c))
+        else:
+            self.walls_v.append((r, c))
+            
+        # Decrement walls
+        if self.current_player == 1:
+            self.p1_walls_left -= 1
+        else:
+            self.p2_walls_left -= 1
+            
+        return True
+    
+    def _decode_pawn_move(self, action):
+        """
+        Translate action (0-11) to a target coordinate IF valid.
+        """
+        # Current and Opponent positions
+        curr = self.p1_pos if self.current_player == 1 else self.p2_pos
+        opp = self.p2_pos if self.current_player == 1 else self.p1_pos
+        
+        valid_moves = self._get_valid_pawn_moves(curr, opp)
+        
+        # Mapping Actions to Delta (dr, dc)
+        deltas = {
+            0: (-1, 0), 1: (0, 1), 2: (1, 0), 3: (0, -1),
+            4: (-2, 0), 5: (0, 2), 6: (2, 0), 7: (0, -2),
+            8: (-1, 1), 9: (-1, -1), 10: (1, 1), 11: (1, -1)
+        }
+        
+        if action not in deltas:
+            return None
+            
+        dr, dc = deltas[action]
+        desired_pos = (curr[0] + dr, curr[1] + dc)
+        
+        if desired_pos in valid_moves:
+            return desired_pos
+        return None
+
+    def _get_valid_pawn_moves(self, curr, opp):
+        """
+        Returns set of valid target (r, c) positions for 'curr' pawn.
+        """
+        moves = set()
+        
+        # 1. Get graph neighbors (blocked by walls?)
+        neighbors = self.state_builder._get_valid_neighbors(curr[0], curr[1], self.walls_h, self.walls_v)
+        
+        for (nr, nc) in neighbors:
+            if (nr, nc) == opp:
+                # 2. Opponent is here. Try Jump/Slide.
+                opp_neighbors = self.state_builder._get_valid_neighbors(nr, nc, self.walls_h, self.walls_v)
+                
+                # Direction of jump: (nr-cr, nc-cc)
+                dr, dc = nr - curr[0], nc - curr[1]
+                jump_dest = (nr + dr, nc + dc)
+                
+                if jump_dest in opp_neighbors:
+                    moves.add(jump_dest)
+                else:
+                    for (onr, onc) in opp_neighbors:
+                         if (onr, onc) != curr: 
+                             moves.add((onr, onc))
+            else:
+                moves.add((nr, nc))
+                
+        return moves
+
+    def _get_path_len(self, pos, heatmap) -> int:
+        r, c = pos
+        dist_norm = heatmap[r, c]
+        dist = int(round(dist_norm * self.state_builder.max_dist))
+        if dist >= int(self.state_builder.max_dist):
+            return 999
+        return dist
+
+    def _calculate_reward(self, valid_move, p1_dist_curr, p2_dist_curr):
+        if not valid_move:
+            return -0.1
+        
+        p1_progress = self.p1_dist_prev - p1_dist_curr
+        # p2_damage: if P2 got farther, reward is positive
+        p2_damage = p2_dist_curr - self.p2_dist_prev
+        
+        p2_progress = self.p2_dist_prev - p2_dist_curr
+        p1_damage = p1_dist_curr - self.p1_dist_prev
+        
+        if self.current_player == 1:
+            shaping = 0.05 * (p1_progress + p2_damage)
+        else:
+            shaping = 0.05 * (p2_progress + p1_damage)
+
+        reward = -0.01 + shaping
         if self._check_win():
-            return 1.0
-        return -0.01 # Step cost
+            reward += 1.0
+        return reward
 
     def _check_win(self):
-        # P1 wins if row == 8, P2 wins if row == 0
-        if self.current_player == 1 and self.p1_pos[0] == 8:
+        if self.p1_pos[0] == 8:
             return True
-        if self.current_player == 2 and self.p2_pos[0] == 0:
+        if self.p2_pos[0] == 0:
             return True
         return False
         
     def get_legal_moves(self):
         """
-        Returns a binary mask [1, 0, 0, 1...] of valid actions.
-        Used for Action Masking.
+        Returns a binary mask [140] of valid actions.
         """
-        mask = np.zeros(137) # Size of your action space
-        # Fill mask with 1s for valid moves...
+        mask = np.zeros(140, dtype=np.float32)
+        
+        # 1. Pawn Moves (0-11)
+        curr = self.p1_pos if self.current_player == 1 else self.p2_pos
+        opp = self.p2_pos if self.current_player == 1 else self.p1_pos
+        
+        valid_targets = self._get_valid_pawn_moves(curr, opp)
+        
+        deltas = {
+            0: (-1, 0), 1: (0, 1), 2: (1, 0), 3: (0, -1),
+            4: (-2, 0), 5: (0, 2), 6: (2, 0), 7: (0, -2),
+            #8: (-1, 1), 9: (-1, -1), 10: (1, 1), 11: (1, -1) mask diagonal moves
+        }
+        for a_idx, (dr, dc) in deltas.items():
+            t_r, t_c = curr[0] + dr, curr[1] + dc
+            if (t_r, t_c) in valid_targets:
+                mask[a_idx] = 1.0
+
+        # 2. Wall Moves (12-139)
+        walls_left = self.p1_walls_left if self.current_player == 1 else self.p2_walls_left
+        
+        if walls_left > 0:
+            h_set = set(self.walls_h)
+            v_set = set(self.walls_v)
+            
+            for w_idx in range(128):
+                wall_type = 'h' if w_idx < 64 else 'v'
+                local_idx = w_idx if w_idx < 64 else w_idx - 64
+                r = local_idx // 8
+                c = local_idx % 8
+                
+                is_valid_pos = True
+                
+                if wall_type == 'h':
+                    if (r, c) in h_set: is_valid_pos = False
+                    elif (r, c-1) in h_set: is_valid_pos = False 
+                    elif (r, c+1) in h_set: is_valid_pos = False 
+                    if (r, c) in v_set: is_valid_pos = False
+                else:
+                    if (r, c) in v_set: is_valid_pos = False
+                    if (r-1, c) in v_set: is_valid_pos = False
+                    if (r+1, c) in v_set: is_valid_pos = False
+                    if (r, c) in h_set: is_valid_pos = False
+                    
+                if not is_valid_pos:
+                    continue
+
+                # B. Path Blocking Check
+                new_h = list(self.walls_h)
+                new_v = list(self.walls_v)
+                if wall_type == 'h': new_h.append((r,c))
+                else: new_v.append((r,c))
+                
+                has_p1 = self._has_path(self.p1_pos, 8, new_h, new_v)
+                if not has_p1: continue
+                
+                has_p2 = self._has_path(self.p2_pos, 0, new_h, new_v)
+                if not has_p2: continue
+                
+                mask[12 + w_idx] = 1.0
+
         return mask
+
+    def _has_path(self, start_pos, goal_row, walls_h, walls_v):
+        """Quick BFS to check reachability."""
+        q = collections.deque([start_pos])
+        visited = {start_pos}
+        
+        while q:
+            r, c = q.popleft()
+            if r == goal_row:
+                return True
+            
+            nbs = self.state_builder._get_valid_neighbors(r, c, walls_h, walls_v)
+            for n in nbs:
+                if n not in visited:
+                    visited.add(n)
+                    q.append(n)
+        return False
