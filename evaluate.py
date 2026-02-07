@@ -66,7 +66,11 @@ def evaluate(
             # Get action from model with action masking
             action_mask = env.action_masks()
             action, _ = model.predict(obs, action_masks=action_mask, deterministic=True)
-            
+
+            # Extract scalar if it's an array
+            if isinstance(action, np.ndarray):
+                action = action.item()
+
             obs, reward, terminated, truncated, info = env.step(action)
             episode_reward += reward
             steps += 1
