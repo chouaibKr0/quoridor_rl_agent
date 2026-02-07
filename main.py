@@ -2,10 +2,11 @@
 Main Game Controller
 Handles ...
 """
+
 import pygame
 import sys
 import time
-from quoridor_rl_agent.quoridor_game import QuoridorGame
+from quoridor_game import QuoridorGame
 from ai_agent import AIAgent 
 from ui import QuoridorUI
 
@@ -50,7 +51,29 @@ class GameController:
         ...
 
 def main():
-    raise NotImplementedError("Implement TODOs to start the game!")
+    pygame.init()
+    
+    # Create game
+    game = QuoridorGame(walls_per_player=10)
+    
+    # Create UI
+    ui = QuoridorUI(game)
+    
+    # Main loop
+    clock = pygame.time.Clock()
+    running = True
+    
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            else:
+                ui.handle_event(event)
+        
+        ui.draw()
+        clock.tick(60)
+    
+    pygame.quit()
 
 if __name__ == "__main__":
     main()
