@@ -5,7 +5,7 @@ Provides graphical interface and user interaction
 import pygame
 import sys
 import time
-from quorido_game import QuoridorGame
+from quoridor_rl_agent.quoridor_game import QuoridorGame
 
 # UI Constants
 # TODO: ADD & Adjust these as needed for better visuals

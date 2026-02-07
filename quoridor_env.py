@@ -8,7 +8,7 @@ from gymnasium import spaces
 import numpy as np
 from typing import Optional, Tuple, Dict, Any
 
-from quorido_game import QuoridorGame
+from quoridor_rl_agent.quoridor_game import QuoridorGame
 
 
 class QuoridorEnv(gym.Env):

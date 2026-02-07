@@ -5,7 +5,7 @@ Handles ...
 import pygame
 import sys
 import time
-from quorido_game import QuoridorGame
+from quoridor_rl_agent.quoridor_game import QuoridorGame
 from ai_agent import AIAgent 
 from ui import QuoridorUI
 
