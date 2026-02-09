@@ -42,6 +42,11 @@ class QuoridorUI:
         self.wall_orientation = "h"  # "h" or "v"
         self.hovered_wall = None
         
+        # Menu state
+        self.start_btn_rect = pygame.Rect(self.width // 2 - 100, self.height - 150, 200, 60)
+        self.p1_rect = pygame.Rect(self.margin, 200, 300, 50)
+        self.p2_rect = pygame.Rect(self.width - self.margin - 300, 200, 300, 50)
+        
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
@@ -172,6 +177,7 @@ class QuoridorUI:
             row = max(0, min(7, row))
             col = max(0, min(7, col))
             
+            self.hovered_wall = ('v', row, col)
             self.hovered_wall = ('v', row, col)
     
     def draw(self):
@@ -362,10 +368,90 @@ class QuoridorUI:
             text = self.tiny_font.render(control, True, self.TEXT_COLOR)
             self.screen.blit(text, (panel_x, y_offset))
             y_offset += 25
+
+    def draw_menu(self, p1_desc, p2_desc):
+        """
+        Draw the main menu.
+        p1_desc, p2_desc: Strings describing selected player type (e.g. "Human", "Dijkstra", "RL: my_model")
+        """
+        self.screen.fill(self.BG_COLOR)
         
-        # Game over
-        if self.game.done:
-            y_offset = self.margin + 200
-            winner_text = "PLAYER 1 WINS!" if self.game.p1_pos[0] == 8 else "PLAYER 2 WINS!"
-            text = self.font.render(winner_text, True, self.HIGHLIGHT_COLOR)
-            self.screen.blit(text, (panel_x, y_offset))
+        # Title
+        title = self.font.render("QUORIDOR", True, self.HIGHLIGHT_COLOR)
+        title_rect = title.get_rect(center=(self.width // 2, 80))
+        self.screen.blit(title, title_rect)
+        
+        # Player 1 Section
+        p1_title = self.small_font.render("Player 1", True, self.P1_COLOR)
+        self.screen.blit(p1_title, (self.margin, 160))
+        
+        # Draw P1 Box
+        pygame.draw.rect(self.screen, self.BOARD_COLOR, self.p1_rect)
+        pygame.draw.rect(self.screen, self.P1_COLOR, self.p1_rect, 2)
+        
+        # P1 Text (Centered in box)
+        # Truncate if too long
+        if len(p1_desc) > 23:
+            p1_desc = p1_desc[:20] + "..."
+        text = self.small_font.render(p1_desc, True, self.TEXT_COLOR)
+        text_rect = text.get_rect(center=self.p1_rect.center)
+        self.screen.blit(text, text_rect)
+        
+        # Player 2 Section
+        p2_title = self.small_font.render("Player 2", True, self.P2_COLOR)
+        # Align right
+        p2_title_rect = p2_title.get_rect(topleft=(self.width - self.margin - 300, 160))
+        self.screen.blit(p2_title, p2_title_rect)
+        
+        # Draw P2 Box
+        pygame.draw.rect(self.screen, self.BOARD_COLOR, self.p2_rect)
+        pygame.draw.rect(self.screen, self.P2_COLOR, self.p2_rect, 2)
+        
+        # P2 Text
+        if len(p2_desc) > 23:
+            p2_desc = p2_desc[:20] + "..."
+        text = self.small_font.render(p2_desc, True, self.TEXT_COLOR)
+        text_rect = text.get_rect(center=self.p2_rect.center)
+        self.screen.blit(text, text_rect)
+        
+        # Instructions
+        instr = self.tiny_font.render("Click box to cycle types. Right click for previous.", True, (150, 150, 150))
+        instr_rect = instr.get_rect(center=(self.width // 2, 280))
+        self.screen.blit(instr, instr_rect)
+        
+        # Start Button
+        color = self.HIGHLIGHT_COLOR
+        pygame.draw.rect(self.screen, color, self.start_btn_rect, border_radius=10)
+        
+        btn_text = self.font.render("START GAME", True, self.BG_COLOR)
+        btn_rect = btn_text.get_rect(center=self.start_btn_rect.center)
+        self.screen.blit(btn_text, btn_rect)
+        
+        pygame.display.flip()
+
+    def draw_game_over(self):
+        # Semi-transparent overlay
+        overlay = pygame.Surface((self.width, self.height))
+        overlay.set_alpha(128)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+        
+        if self.game.p1_pos[0] == 8:
+            msg = "PLAYER 1 WINS!"
+            color = self.P1_COLOR
+        elif self.game.p2_pos[0] == 0:
+            msg = "PLAYER 2 WINS!"
+            color = self.P2_COLOR
+        else:
+            msg = "GAME OVER"
+            color = self.TEXT_COLOR
+        
+        text = self.font.render(msg, True, color)
+        rect = text.get_rect(center=(self.width // 2, self.height // 2 - 40))
+        self.screen.blit(text, rect)
+        
+        sub = self.small_font.render("Press R to Restart or M for Menu", True, (255, 255, 255))
+        sub_rect = sub.get_rect(center=(self.width // 2, self.height // 2 + 20))
+        self.screen.blit(sub, sub_rect)
+        
+        pygame.display.flip()

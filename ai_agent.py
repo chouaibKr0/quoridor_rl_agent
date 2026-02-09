@@ -7,6 +7,7 @@ import numpy as np
 import collections
 from typing import Optional
 from abc import ABC, abstractmethod
+from sb3_contrib import MaskablePPO
 
 
 class BaseAgent(ABC):
@@ -266,19 +267,50 @@ class MinimaxAgent(BaseAgent):
         return 0.0
 
 
+class RLAgent(BaseAgent):
+    """
+    Agent powered by a trained RL model (MaskablePPO).
+    """
+
+    def __init__(self, model_path: str, player: int = 2, seed: Optional[int] = None):
+        try:
+            self.model = MaskablePPO.load(model_path)
+            self.model.set_random_seed(seed)
+        except Exception as e:
+            print(f"Error loading model from {model_path}: {e}")
+            raise e 
+            
+        self.player = player
+        self.rng = np.random.default_rng(seed)
+
+    def select_action(self, observation: np.ndarray, action_mask: np.ndarray) -> int:
+        action, _ = self.model.predict(observation, action_masks=action_mask, deterministic=True)
+        if isinstance(action, np.ndarray):
+            return action.item()
+        return int(action)
+
+
 # Convenience function to get agent by name
-def get_agent(name: str, player: int = 2, seed: Optional[int] = None) -> BaseAgent:
+def get_agent(name: str, player: int = 2, seed: Optional[int] = None, model_path: Optional[str] = None) -> BaseAgent:
     """
     Factory function to create agents by name.
     
     Args:
-        name: Agent type ('random', 'dijkstra', 'strategic', 'minimax')
+        name: Agent type ('random', 'dijkstra', 'strategic', 'minimax', 'rl')
         player: Player number (1 or 2)
         seed: Random seed
+        model_path: Path to model file (required for 'rl' agent)
     
     Returns:
         Agent instance
     """
+    name = name.lower()
+    
+    if name == 'rl':
+        if not model_path:
+            raise ValueError("model_path is required for RL agent")
+        return RLAgent(model_path, player=player, seed=seed)
+
     agents = {
         'random': lambda: RandomAgent(seed=seed),
         'dijkstra': lambda: DijkstraAgent(player=player, seed=seed),
@@ -286,7 +318,7 @@ def get_agent(name: str, player: int = 2, seed: Optional[int] = None) -> BaseAge
         'minimax': lambda: MinimaxAgent(player=player, seed=seed),
     }
     
-    if name.lower() not in agents:
-        raise ValueError(f"Unknown agent: {name}. Available: {list(agents.keys())}")
+    if name not in agents:
+        raise ValueError(f"Unknown agent: {name}. Available: {list(agents.keys()) + ['rl']}")
     
-    return agents[name.lower()]()
+    return agents[name]()
