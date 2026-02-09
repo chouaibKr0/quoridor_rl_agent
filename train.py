@@ -15,7 +15,6 @@ from sb3_contrib.common.maskable.callbacks import MaskableEvalCallback
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-
 from quoridor_env import QuoridorEnv, SelfPlayEnv
 from feature_extractor import QuoridorCNN, QuoridorResidualCNN
 from ai_agent import get_agent
@@ -55,6 +54,7 @@ def make_env(opponent_type: Optional[str] = None, seed: int = 0, rank: int = 0):
 def train(
     total_timesteps: int = 1_000_000,
     opponent: Optional[str] = None,
+    load_model: Optional[str] = None,
     feature_extractor: str = "cnn",
     n_envs: int = 4,
     learning_rate: float = 3e-4,
@@ -78,6 +78,7 @@ def train(
     Args:
         total_timesteps: Total training steps
         opponent: Opponent type for training ('random', 'dijkstra', 'strategic', None for self-play)
+        load_model: Path to existing model .zip file to continue training from
         feature_extractor: CNN architecture ('cnn' or 'residual')
         n_envs: Number of parallel environments
         learning_rate: Learning rate
@@ -122,23 +123,34 @@ def train(
         "net_arch": dict(pi=[128, 64], vf=[128, 64]),
     }
     
-    # Create model
-    model = MaskablePPO(
-        "CnnPolicy",
-        env,
-        learning_rate=learning_rate,
-        n_steps=n_steps,
-        batch_size=batch_size,
-        n_epochs=n_epochs,
-        gamma=gamma,
-        gae_lambda=gae_lambda,
-        clip_range=clip_range,
-        ent_coef=ent_coef,
-        policy_kwargs=policy_kwargs,
-        tensorboard_log=log_dir,
-        verbose=verbose,
-        seed=seed,
-    )
+    # Create or load model
+    if load_model:
+        print(f"Loading model from: {load_model}")
+        model = MaskablePPO.load(
+            load_model,
+            env=env,
+            tensorboard_log=log_dir,
+            verbose=verbose,
+        )
+        # Update learning rate for continued training
+        model.learning_rate = learning_rate
+    else:
+        model = MaskablePPO(
+            "CnnPolicy",
+            env,
+            learning_rate=learning_rate,
+            n_steps=n_steps,
+            batch_size=batch_size,
+            n_epochs=n_epochs,
+            gamma=gamma,
+            gae_lambda=gae_lambda,
+            clip_range=clip_range,
+            ent_coef=ent_coef,
+            policy_kwargs=policy_kwargs,
+            tensorboard_log=log_dir,
+            verbose=verbose,
+            seed=seed,
+        )
     
     # Callbacks
     callbacks = []
@@ -155,6 +167,8 @@ def train(
     print(f"\n{'='*60}")
     print(f"Training Quoridor PPO Agent")
     print(f"{'='*60}")
+    if load_model:
+        print(f"Base Model: {load_model}")
     print(f"Opponent: {opponent or 'self-play'}")
     print(f"Feature Extractor: {feature_extractor}")
     print(f"Total Timesteps: {total_timesteps:,}")
@@ -204,6 +218,8 @@ def main():
                         help="Model save directory")
     parser.add_argument("--no-save", action="store_true",
                         help="Don't save the model")
+    parser.add_argument("--load-model", type=str, default=None,
+                        help="Path to existing model .zip to continue training from")
     parser.add_argument("--verbose", type=int, default=1,
                         help="Verbosity level")
     
@@ -212,6 +228,7 @@ def main():
     train(
         total_timesteps=args.timesteps,
         opponent=args.opponent,
+        load_model=args.load_model,
         feature_extractor=args.extractor,
         n_envs=args.n_envs,
         learning_rate=args.lr,

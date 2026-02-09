@@ -57,7 +57,7 @@ The UI menu allows flexible matchmaking:
 - `W`: Wall mode (hover and click to place)
 - `H`/`V`: Toggle wall orientation
 - `R`: Reset game
-- `M`: Return to menu (during game)
+- `ESC`: Return to menu (during game)
 
 ### Train New Agent
 ```bash
@@ -69,6 +69,9 @@ python train.py --opponent dijkstra --steps 200000
 
 # Self-play training
 python train.py --opponent selfplay --steps 500000
+
+# Continue training from existing model (transfer learning)
+python train.py --load-model models/quoridor_ppo_final_20260207_133610.zip --opponent dijkstra --timesteps 100000
 ```
 
 Models are saved to `models/` with naming convention: `models/quoridor_ppo_final_{date}_{time}.zip`

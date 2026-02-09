@@ -362,6 +362,7 @@ class QuoridorUI:
             "H - Horizontal",
             "V - Vertical",
             "R - Reset",
+            "ESC - Menu",
         ]
         
         for control in controls:
@@ -450,7 +451,7 @@ class QuoridorUI:
         rect = text.get_rect(center=(self.width // 2, self.height // 2 - 40))
         self.screen.blit(text, rect)
         
-        sub = self.small_font.render("Press R to Restart or M for Menu", True, (255, 255, 255))
+        sub = self.small_font.render("Press R to Restart or ESC for Menu", True, (255, 255, 255))
         sub_rect = sub.get_rect(center=(self.width // 2, self.height // 2 + 20))
         self.screen.blit(sub, sub_rect)
         

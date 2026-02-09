@@ -122,9 +122,9 @@ class GameController:
                     self.p2_idx = (self.p2_idx - 1) % len(self.p2_types)
 
     def handle_playing_event(self, event):
-        # Allow quitting to menu with 'M' anytime
+        # Allow quitting to menu with 'ESC' anytime
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_m:
+            if event.key == pygame.K_ESCAPE:
                  self.state = "menu"
                  return
             if event.key == pygame.K_r:
@@ -149,7 +149,7 @@ class GameController:
             if event.key == pygame.K_r:
                 self.reset_game()
                 self.state = "playing"
-            elif event.key == pygame.K_m:
+            elif event.key == pygame.K_ESCAPE:
                 self.state = "menu"
         elif event.type == pygame.MOUSEBUTTONDOWN:
             # Click anywhere to restart? No, explicitly enforce keys or maybe add buttons later
