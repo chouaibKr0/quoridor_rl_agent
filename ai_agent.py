@@ -9,6 +9,8 @@ from typing import Optional
 from abc import ABC, abstractmethod
 from sb3_contrib import MaskablePPO
 
+from quoridor_game import QuoridorStateBuilder
+
 
 class BaseAgent(ABC):
     """Abstract base class for all agents."""
@@ -133,51 +135,121 @@ class DijkstraAgent(BaseAgent):
 
 class StrategicAgent(BaseAgent):
     """
-    Strategic agent that combines:
-    1. Greedy pawn movement (like Dijkstra)
-    2. Wall placement to block opponent
-    
-    Uses a simple heuristic:
-    - If opponent is close to winning, try to place a blocking wall
-    - Otherwise, advance toward goal
+    Strategic agent that:
+    1. Checks if it can place a wall to increase the opponent's path length.
+    2. If multiple good walls exist, picks one randomly.
+    3. If no wall increases path length (or based on probability), moves greedily towards goal (Dijkstra).
     """
     
-    def __init__(self, player: int = 2, wall_prob: float = 0.3, seed: Optional[int] = None):
+    def __init__(self, player: int = 2, wall_prob: float = 0.5, seed: Optional[int] = None):
         """
         Args:
             player: Which player this agent is (1 or 2)
-            wall_prob: Probability of considering wall placement
+            wall_prob: Probability of placing a wall if a good one is found.
             seed: Random seed
         """
         self.player = player
         self.wall_prob = wall_prob
         self.rng = np.random.default_rng(seed)
         self.dijkstra = DijkstraAgent(player=player, seed=seed)
+        self.state_builder = QuoridorStateBuilder()
         
     def select_action(self, observation: np.ndarray, action_mask: np.ndarray) -> int:
-        # Get opponent's distance to goal
+        # 1. Identify Opponent Info
         if self.player == 1:
-            opp_dist_channel = observation[:, :, 5]  # P2's distance
             opp_pos_channel = observation[:, :, 1]
+            opp_goal_row = 0
+            # Opponent is P2. P2 goal is row 0.
         else:
-            opp_dist_channel = observation[:, :, 4]  # P1's distance
             opp_pos_channel = observation[:, :, 0]
-        
-        # Find opponent position
+            opp_goal_row = 8
+            # Opponent is P1. P1 goal is row 8.
+            
         opp_pos = np.unravel_index(np.argmax(opp_pos_channel), opp_pos_channel.shape)
-        opp_dist = opp_dist_channel[opp_pos[0], opp_pos[1]]
         
-        # Check if walls are available (actions 12-139)
+        # 2. Reconstruct Current Walls
+        walls_h_channel = observation[:, :, 2]
+        walls_v_channel = observation[:, :, 3]
+        
+        current_walls_h = []
+        current_walls_v = []
+        
+        rows, cols = walls_h_channel.shape
+        for r in range(rows):
+            for c in range(cols):
+                if walls_h_channel[r, c] == 1.0:
+                    current_walls_h.append((r, c))
+                if walls_v_channel[r, c] == 1.0:
+                    current_walls_v.append((r, c))
+                    
+        # 3. Calculate Current Opponent Path Length
+        # (We can trust the observation's heatmap channels, but to be consistent with 
+        # our simulation, let's recalculate or use the channel if we are sure.)
+        # Let's use the builder to get the baseline to compare apples to apples.
+        base_heatmap = self.state_builder.get_shortest_path_heatmap(
+            opp_pos, opp_goal_row, current_walls_h, current_walls_v
+        )
+        base_dist = base_heatmap[opp_pos]
+        
+        # 4. Evaluate Valid Wall Actions
+        # Wall actions are 12 to 139
         wall_actions = np.where(action_mask[12:] > 0)[0] + 12
         
-        # If opponent is close (small distance) and we have walls, consider blocking
-        if len(wall_actions) > 0 and opp_dist < 0.1:  # Normalized distance
-            if self.rng.random() < self.wall_prob:
-                # Try to find a wall that increases opponent's distance
-                # For simplicity, just pick a random valid wall
-                return self.rng.choice(wall_actions)
+        best_wall_actions = []
+        max_dist = base_dist
         
-        # Default: use Dijkstra strategy
+        # Only simulate if we decide to potentially place a wall
+        # (We check wall_prob later? The prompt said "rather then placing a random wall it places ANY wall that makes opponent path longer")
+        # So we should ALWAYS look for such a wall first.
+        
+        if len(wall_actions) > 0:
+            for w_action in wall_actions:
+                # Decode wall
+                w_idx = w_action - 12
+                is_h = w_idx < 64
+                local_idx = w_idx if is_h else w_idx - 64
+                r = local_idx // 8
+                c = local_idx % 8
+                
+                # Temp walls
+                temp_h = list(current_walls_h)
+                temp_v = list(current_walls_v)
+                
+                if is_h:
+                    temp_h.append((r, c))
+                else:
+                    temp_v.append((r, c))
+                    
+                # Calculate new distance
+                new_heatmap = self.state_builder.get_shortest_path_heatmap(
+                    opp_pos, opp_goal_row, temp_h, temp_v
+                )
+                new_dist = new_heatmap[opp_pos]
+                
+                if new_dist > max_dist:
+                    max_dist = new_dist
+                    best_wall_actions = [w_action]
+                elif new_dist == max_dist and new_dist > base_dist:
+                    # Keep track of all walls that maximize the distance equally
+                    best_wall_actions.append(w_action)
+        
+        # 5. Select Action
+        if best_wall_actions:
+            # We found a wall that makes the path longer!
+            # Use wall_prob to decide if we actually do it (to add some stochasticity/conservativeness?)
+            # The prompt implies: "places any wall that makes opponent path longer".
+            # It didn't explicitly say "always", but it replaced the "random wall" logic.
+            # I'll stick to the existing wall_prob to determine IF we want to place a wall vs move.
+            # BUT, if we DO place a wall, it must be one of the best ones.
+            
+            # However, the previous logic was: "If opp close AND wall_prob, place random wall".
+            # New logic: "Place wall that makes path longer".
+            
+            # Let's say: If we found a wall that increases path, we prioritize it based on wall_prob.
+            if self.rng.random() < self.wall_prob:
+                 return self.rng.choice(best_wall_actions)
+        
+        # Fallback: Move towards goal (Dijkstra)
         return self.dijkstra.select_action(observation, action_mask)
 
 
@@ -311,12 +383,15 @@ def get_agent(name: str, player: int = 2, seed: Optional[int] = None, model_path
             raise ValueError("model_path is required for RL agent")
         return RLAgent(model_path, player=player, seed=seed)
 
+    rng = np.random.default_rng(seed) 
     agents = {
+        'mixed': lambda: DijkstraAgent(player, seed=seed) if rng.random() < 0.8 else StrategicAgent(player, seed=seed),
         'random': lambda: RandomAgent(seed=seed),
         'dijkstra': lambda: DijkstraAgent(player=player, seed=seed),
         'strategic': lambda: StrategicAgent(player=player, seed=seed),
         'minimax': lambda: MinimaxAgent(player=player, seed=seed),
     }
+
     
     if name not in agents:
         raise ValueError(f"Unknown agent: {name}. Available: {list(agents.keys()) + ['rl']}")

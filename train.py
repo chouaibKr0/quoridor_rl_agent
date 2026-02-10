@@ -197,7 +197,7 @@ def main():
     parser.add_argument("--timesteps", type=int, default=1_000_000,
                         help="Total training timesteps")
     parser.add_argument("--opponent", type=str, default=None,
-                        choices=["random", "dijkstra", "strategic", None],
+                        choices=["random", "dijkstra", "strategic","mixed", None],
                         help="Opponent type (None for self-play)")
     parser.add_argument("--extractor", type=str, default="cnn",
                         choices=["cnn", "residual"],

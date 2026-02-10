@@ -331,21 +331,24 @@ class QuoridorGame:
             return -0.1
         
         p1_progress = self.p1_dist_prev - p1_dist_curr
-        # p2_damage: if P2 got farther, reward is positive
         p2_damage = p2_dist_curr - self.p2_dist_prev
-        
         p2_progress = self.p2_dist_prev - p2_dist_curr
         p1_damage = p1_dist_curr - self.p1_dist_prev
         
+        # ASYMMETRIC: favor own progress over blocking
         if self.current_player == 1:
-            shaping = 0.05 * (p1_progress + p2_damage)
+            shaping = 0.07 * p1_progress + 0.03 * p2_damage  # 70/30 split
         else:
-            shaping = 0.05 * (p2_progress + p1_damage)
-
-        reward = -0.01 + shaping
+            shaping = 0.07 * p2_progress + 0.03 * p1_damage
+        
+        # STRONGER step penalty to discourage long games
+        step_cost = -0.03
+        
+        reward = step_cost + shaping
         if self._check_win():
             reward += 1.0
         return reward
+
 
     def _check_win(self):
         if self.p1_pos[0] == 8:
