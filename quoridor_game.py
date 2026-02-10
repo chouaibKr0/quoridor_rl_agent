@@ -5,6 +5,7 @@ Implements the core game mechanics and board state management
 
 import numpy as np
 import collections
+from numba_utils import bfs_distances_numba, check_path_exists_numba, get_valid_neighbors_numba
 
 class QuoridorStateBuilder:
     # TODO: Review carefully this class
@@ -15,78 +16,29 @@ class QuoridorStateBuilder:
         # Max path length for normalization (approx 81 squares)
         self.max_dist = 81.0 
 
-    def get_shortest_path_heatmap(self, start_pos: tuple[int, int], goal_row: int, walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]]):
+    def get_shortest_path_heatmap(self, start_pos: tuple[int, int], goal_row: int, h_walls_mask, v_walls_mask):
         """
         Runs BFS to calculate distance from EVERY square to the GOAL.
         Returns a 9x9 grid where value = distance to goal.
         """
-        distances = np.full((self.height, self.width), self.max_dist)
-        queue = collections.deque()
+        # Call Numba optimized BFS
+        # Note: Numba function takes masks directly
+        # p1_pos is not needed for heatmap generation, just goal row and walls
         
-        # Initialize BFS from the GOAL line (backward search)
-        # For P1 (starts top), goal is row 8 (bottom)
-        # For P2 (starts bottom), goal is row 0 (top)
-        
-        # If goal is specific row:
-        for col in range(9):
-            distances[goal_row, col] = 0
-            queue.append((goal_row, col))
-            
-        while queue:
-            r, c = queue.popleft()
-            dist = distances[r, c]
-            
-            # Check neighbors (Up, Down, Left, Right)
-            # You must add logic here to check if a WALL blocks the move
-            neighbors = self._get_valid_neighbors(r, c, walls_h, walls_v)
-            
-            for nr, nc in neighbors:
-                if distances[nr, nc] == self.max_dist: # Not visited
-                    distances[nr, nc] = dist + 1
-                    queue.append((nr, nc))
-        # Normalize: Close = 0.0, Far/Unreachable = 1.0
-        # (i.e., keep raw normalized distances where 0 means at goal)
-        return distances / self.max_dist
+        # We need distances FROM goal TO everywhere.
+        # Our Numba BFS initializes queue with goal_row and floods outwards.
+        # So distances[r, c] is distance to goal.
+        return bfs_distances_numba(start_pos[0], start_pos[1], goal_row, h_walls_mask, v_walls_mask, self.max_dist)
 
-    def _get_valid_neighbors(self, r:int, c:int, walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]]):
-        # Returns list of (r, c) tuples
-        # Wall representation:
-        # - Horizontal wall at (wr, wc) blocks movement between (wr, wc)<->(wr+1, wc)
-        #   AND between (wr, wc+1)<->(wr+1, wc+1).
-        # - Vertical wall at (wr, wc) blocks movement between (wr, wc)<->(wr, wc+1)
-        #   AND between (wr+1, wc)<->(wr+1, wc+1).
-        
-        moves: list[tuple[int, int]] = []
-        walls_h_set = set(walls_h)
-        walls_v_set = set(walls_v)
-
-        # Up: (r-1, c)
-        if r > 0:
-            # Blocked if H-wall at (r-1, c) OR (r-1, c-1)
-            if (r - 1, c) not in walls_h_set and (r - 1, c - 1) not in walls_h_set:
-                moves.append((r - 1, c))
-
-        # Down: (r+1, c)
-        if r < self.height - 1:
-            # Blocked if H-wall at (r, c) OR (r, c-1)
-            if (r, c) not in walls_h_set and (r, c - 1) not in walls_h_set:
-                moves.append((r + 1, c))
-
-        # Left: (r, c-1)
-        if c > 0:
-            # Blocked if V-wall at (r, c-1) OR (r-1, c-1)
-            if (r, c - 1) not in walls_v_set and (r - 1, c - 1) not in walls_v_set:
-                moves.append((r, c - 1))
-
-        # Right: (r, c+1)
-        if c < self.width - 1:
-            # Blocked if V-wall at (r, c) OR (r-1, c)
-            if (r, c) not in walls_v_set and (r - 1, c) not in walls_v_set:
-                moves.append((r, c + 1))
-
+    def _get_valid_neighbors(self, r:int, c:int, h_walls_mask, v_walls_mask):
+        # Wrapper for Numba optimized neighbor check
+        nbs_arr, count = get_valid_neighbors_numba(r, c, h_walls_mask, v_walls_mask)
+        moves = []
+        for i in range(count):
+            moves.append((nbs_arr[i, 0], nbs_arr[i, 1]))
         return moves
 
-    def build_state(self, p1_pos:tuple[int, int], p2_pos:tuple[int, int], walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]]):
+    def build_state(self, p1_pos:tuple[int, int], p2_pos:tuple[int, int], walls_h: list[tuple[int, int]], walls_v: list[tuple[int, int]], h_walls_mask, v_walls_mask):
         """
         Constructs the 9x9x6 observation tensor.
         p1_pos, p2_pos: tuples (row, col)
@@ -105,24 +57,21 @@ class QuoridorStateBuilder:
         state[r2, c2, 1] = 1.0
 
         # --- Channel 2: Horizontal Walls ---
-        # walls_h are typically (r, c) of the top-left corner of the wall
-        for (r, c) in walls_h:
-            if 0 <= r < 9 and 0 <= c < 9:
-                state[r, c, 2] = 1.0
+        # USE MASKS directly if aligned?
+        # The mask is 9x9. walls_h list also maps to 9x9.
+        state[:, :, 2] = h_walls_mask.astype(np.float32)
 
         # --- Channel 3: Vertical Walls ---
-        for (r, c) in walls_v:
-            if 0 <= r < 9 and 0 <= c < 9:
-                state[r, c, 3] = 1.0
+        state[:, :, 3] = v_walls_mask.astype(np.float32)
 
         # --- Channel 4: P1 Distance Map (Heatmap) ---
         # P1 wants to get to row 8
-        dist_map_p1 = self.get_shortest_path_heatmap(p1_pos, 8, walls_h, walls_v)
+        dist_map_p1 = self.get_shortest_path_heatmap(p1_pos, 8, h_walls_mask, v_walls_mask)
         state[:, :, 4] = dist_map_p1
 
         # --- Channel 5: P2 Distance Map (Heatmap) ---
         # P2 wants to get to row 0
-        dist_map_p2 = self.get_shortest_path_heatmap(p2_pos, 0, walls_h, walls_v)
+        dist_map_p2 = self.get_shortest_path_heatmap(p2_pos, 0, h_walls_mask, v_walls_mask)
         state[:, :, 5] = dist_map_p2
 
         return state
@@ -152,6 +101,11 @@ class QuoridorGame:
         self.p2_walls_left = self.initial_walls
         self.walls_h = []  # List of (r, c)
         self.walls_v = []  # List of (r, c)
+        
+        # --- OPTIMIZATION: Maintain masks ---
+        self.h_walls_mask = np.zeros((9, 9), dtype=np.int8)
+        self.v_walls_mask = np.zeros((9, 9), dtype=np.int8)
+        
         self.current_player = 1 
         self.done = False
         
@@ -173,7 +127,9 @@ class QuoridorGame:
             self.p1_pos, 
             self.p2_pos, 
             self.walls_h, 
-            self.walls_v
+            self.walls_v,
+            self.h_walls_mask,
+            self.v_walls_mask
         )
     
     def step(self, action):
@@ -251,8 +207,10 @@ class QuoridorGame:
         # Add Wall
         if wall_type == 'h':
             self.walls_h.append((r, c))
+            self.h_walls_mask[r, c] = 1
         else:
             self.walls_v.append((r, c))
+            self.v_walls_mask[r, c] = 1
             
         # Decrement walls
         if self.current_player == 1:
@@ -296,12 +254,12 @@ class QuoridorGame:
         moves = set()
         
         # 1. Get graph neighbors (blocked by walls?)
-        neighbors = self.state_builder._get_valid_neighbors(curr[0], curr[1], self.walls_h, self.walls_v)
+        neighbors = self.state_builder._get_valid_neighbors(curr[0], curr[1], self.h_walls_mask, self.v_walls_mask)
         
         for (nr, nc) in neighbors:
             if (nr, nc) == opp:
                 # 2. Opponent is here. Try Jump/Slide.
-                opp_neighbors = self.state_builder._get_valid_neighbors(nr, nc, self.walls_h, self.walls_v)
+                opp_neighbors = self.state_builder._get_valid_neighbors(nr, nc, self.h_walls_mask, self.v_walls_mask)
                 
                 # Direction of jump: (nr-cr, nc-cc)
                 dr, dc = nr - curr[0], nc - curr[1]
@@ -383,8 +341,7 @@ class QuoridorGame:
         walls_left = self.p1_walls_left if self.current_player == 1 else self.p2_walls_left
         
         if walls_left > 0:
-            h_set = set(self.walls_h)
-            v_set = set(self.walls_v)
+            # We use Numba's checks which are much faster.
             
             for w_idx in range(128):
                 wall_type = 'h' if w_idx < 64 else 'v'
@@ -395,48 +352,43 @@ class QuoridorGame:
                 is_valid_pos = True
                 
                 if wall_type == 'h':
-                    if (r, c) in h_set: is_valid_pos = False
-                    elif (r, c-1) in h_set: is_valid_pos = False 
-                    elif (r, c+1) in h_set: is_valid_pos = False 
-                    if (r, c) in v_set: is_valid_pos = False
+                    if self.h_walls_mask[r, c] == 1: is_valid_pos = False
+                    elif c > 0 and self.h_walls_mask[r, c-1] == 1: is_valid_pos = False 
+                    elif c < 8 and self.h_walls_mask[r, c+1] == 1: is_valid_pos = False 
+                    if self.v_walls_mask[r, c] == 1: is_valid_pos = False
                 else:
-                    if (r, c) in v_set: is_valid_pos = False
-                    if (r-1, c) in v_set: is_valid_pos = False
-                    if (r+1, c) in v_set: is_valid_pos = False
-                    if (r, c) in h_set: is_valid_pos = False
+                    if self.v_walls_mask[r, c] == 1: is_valid_pos = False
+                    if r > 0 and self.v_walls_mask[r-1, c] == 1: is_valid_pos = False
+                    if r < 8 and self.v_walls_mask[r+1, c] == 1: is_valid_pos = False
+                    if self.h_walls_mask[r, c] == 1: is_valid_pos = False
                     
                 if not is_valid_pos:
                     continue
 
                 # B. Path Blocking Check
-                new_h = list(self.walls_h)
-                new_v = list(self.walls_v)
-                if wall_type == 'h': new_h.append((r,c))
-                else: new_v.append((r,c))
+                if wall_type == 'h': 
+                    self.h_walls_mask[r, c] = 1
+                else: 
+                    self.v_walls_mask[r, c] = 1
                 
-                has_p1 = self._has_path(self.p1_pos, 8, new_h, new_v)
-                if not has_p1: continue
+                # Check Path with new wall using Numba
+                has_p1 = check_path_exists_numba(self.p1_pos[0], self.p1_pos[1], 8, self.h_walls_mask, self.v_walls_mask)
                 
-                has_p2 = self._has_path(self.p2_pos, 0, new_h, new_v)
-                if not has_p2: continue
+                if has_p1:
+                    has_p2 = check_path_exists_numba(self.p2_pos[0], self.p2_pos[1], 0, self.h_walls_mask, self.v_walls_mask)
+                    if has_p2:
+                        mask[12 + w_idx] = 1.0
                 
-                mask[12 + w_idx] = 1.0
+                # Revert
+                if wall_type == 'h': 
+                    self.h_walls_mask[r, c] = 0
+                else: 
+                    self.v_walls_mask[r, c] = 0
 
         return mask
-
+    
     def _has_path(self, start_pos, goal_row, walls_h, walls_v):
-        """Quick BFS to check reachability."""
-        q = collections.deque([start_pos])
-        visited = {start_pos}
-        
-        while q:
-            r, c = q.popleft()
-            if r == goal_row:
-                return True
-            
-            nbs = self.state_builder._get_valid_neighbors(r, c, walls_h, walls_v)
-            for n in nbs:
-                if n not in visited:
-                    visited.add(n)
-                    q.append(n)
-        return False
+        """
+        DEPRECATED: Use check_path_exists_numba instead.
+        """
+        pass
