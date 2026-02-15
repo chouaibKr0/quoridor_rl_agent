@@ -13,6 +13,7 @@ from sb3_contrib import MaskablePPO
 from quoridor_env import QuoridorEnv
 from ai_agent import get_agent, BaseAgent
 
+DETERMINISTIC = False
 
 def evaluate(
     model_path: str,
@@ -65,7 +66,7 @@ def evaluate(
         while not done:
             # Get action from model with action masking
             action_mask = env.action_masks()
-            action, _ = model.predict(obs, action_masks=action_mask, deterministic=True)
+            action, _ = model.predict(obs, action_masks=action_mask, deterministic=DETERMINISTIC)
 
             # Extract scalar if it's an array
             if isinstance(action, np.ndarray):

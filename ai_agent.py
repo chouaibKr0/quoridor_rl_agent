@@ -92,41 +92,45 @@ class DijkstraAgent(BaseAgent):
         else:
             pos_channel = observation[:, :, 1]
             dist_channel = observation[:, :, 5]  # P2 distance to goal
-        
+
         # Find current position
         curr_pos = np.unravel_index(np.argmax(pos_channel), pos_channel.shape)
         curr_r, curr_c = curr_pos
-        
+
         # Find valid pawn moves (actions 0-11)
         valid_pawn_actions = []
         for action_idx in range(12):
             if action_mask[action_idx] > 0:
                 valid_pawn_actions.append(action_idx)
-        
+
         if not valid_pawn_actions:
             # No pawn moves available, pick any valid action
             valid_actions = np.where(action_mask > 0)[0]
+            if len(valid_actions) == 0:
+                # No valid actions at all - this should trigger game termination
+                # Return 0 as a fallback (the environment should handle this)
+                return 0
             return self.rng.choice(valid_actions)
-        
+
         # Evaluate each pawn move by resulting distance
         best_actions = []
         best_distance = float('inf')
-        
+
         for action_idx in valid_pawn_actions:
             dr, dc = self.deltas[action_idx]
             new_r, new_c = curr_r + dr, curr_c + dc
-            
+
             # Check bounds
             if 0 <= new_r < 9 and 0 <= new_c < 9:
                 # Get distance from heatmap (lower is better)
                 distance = dist_channel[new_r, new_c]
-                
+
                 if distance < best_distance:
                     best_distance = distance
                     best_actions = [action_idx]
                 elif distance == best_distance:
                     best_actions.append(action_idx)
-        
+
         if best_actions:
             return self.rng.choice(best_actions)
         else:
@@ -167,28 +171,15 @@ class StrategicAgent(BaseAgent):
             
         opp_pos = np.unravel_index(np.argmax(opp_pos_channel), opp_pos_channel.shape)
         
-        # 2. Reconstruct Current Walls
-        walls_h_channel = observation[:, :, 2]
-        walls_v_channel = observation[:, :, 3]
-        
-        current_walls_h = []
-        current_walls_v = []
-        
-        rows, cols = walls_h_channel.shape
-        for r in range(rows):
-            for c in range(cols):
-                if walls_h_channel[r, c] == 1.0:
-                    current_walls_h.append((r, c))
-                if walls_v_channel[r, c] == 1.0:
-                    current_walls_v.append((r, c))
-                    
+        # 2. Get Current Wall Masks (already numpy arrays)
+        h_walls_mask = observation[:, :, 2].astype(np.int8)
+        v_walls_mask = observation[:, :, 3].astype(np.int8)
+
         # 3. Calculate Current Opponent Path Length
-        # (We can trust the observation's heatmap channels, but to be consistent with 
-        # our simulation, let's recalculate or use the channel if we are sure.)
-        # Let's use the builder to get the baseline to compare apples to apples.
         base_heatmap = self.state_builder.get_shortest_path_heatmap(
-            opp_pos, opp_goal_row, current_walls_h, current_walls_v
+            opp_pos, opp_goal_row, h_walls_mask, v_walls_mask
         )
+
         base_dist = base_heatmap[opp_pos]
         
         # 4. Evaluate Valid Wall Actions
@@ -210,15 +201,13 @@ class StrategicAgent(BaseAgent):
                 local_idx = w_idx if is_h else w_idx - 64
                 r = local_idx // 8
                 c = local_idx % 8
-                
-                # Temp walls
-                temp_h = list(current_walls_h)
-                temp_v = list(current_walls_v)
-                
+                                
+                temp_h = h_walls_mask.copy()
+                temp_v = v_walls_mask.copy()
                 if is_h:
-                    temp_h.append((r, c))
+                    temp_h[r, c] = 1
                 else:
-                    temp_v.append((r, c))
+                    temp_v[r, c] = 1
                     
                 # Calculate new distance
                 new_heatmap = self.state_builder.get_shortest_path_heatmap(
@@ -344,19 +333,19 @@ class RLAgent(BaseAgent):
     Agent powered by a trained RL model (MaskablePPO).
     """
 
-    def __init__(self, model_path: str, player: int = 2, seed: Optional[int] = None):
+    def __init__(self, model_path: str, player: int = 2, seed: Optional[int] = None, deterministic: bool = False):
         try:
             self.model = MaskablePPO.load(model_path)
             self.model.set_random_seed(seed)
         except Exception as e:
             print(f"Error loading model from {model_path}: {e}")
             raise e 
-            
+        self.deterministic = deterministic
         self.player = player
         self.rng = np.random.default_rng(seed)
 
     def select_action(self, observation: np.ndarray, action_mask: np.ndarray) -> int:
-        action, _ = self.model.predict(observation, action_masks=action_mask, deterministic=True)
+        action, _ = self.model.predict(observation, action_masks=action_mask, deterministic=self.deterministic)
         if isinstance(action, np.ndarray):
             return action.item()
         return int(action)

@@ -15,6 +15,7 @@ from sb3_contrib.common.maskable.callbacks import MaskableEvalCallback
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.utils import get_schedule_fn
 from quoridor_env import QuoridorEnv, SelfPlayEnv
 from feature_extractor import QuoridorCNN, QuoridorResidualCNN
 from ai_agent import get_agent
@@ -38,8 +39,9 @@ def make_env(opponent_type: Optional[str] = None, seed: int = 0, rank: int = 0):
         rank: Environment rank for vectorized envs
     """
     def _init():
+        current_seed = None if seed is None else seed + rank
         if opponent_type:
-            opponent = get_agent(opponent_type, player=2, seed=seed + rank)
+            opponent = get_agent(opponent_type, player=2, seed=current_seed)
             env = QuoridorEnv(opponent=opponent, max_steps=200)
         else:
             env = SelfPlayEnv(max_steps=200)
@@ -132,8 +134,18 @@ def train(
             tensorboard_log=log_dir,
             verbose=verbose,
         )
-        # Update learning rate for continued training
+        # 1. Update the internal schedule function (SB3 uses this during .learn())
+        model.lr_schedule = get_schedule_fn(learning_rate)
+
+        # 2. Update the public attribute (for logging/debugging)
         model.learning_rate = learning_rate
+
+        # 3. Update the active optimizer (what actually updates the weights)
+        #    (The optimizer is usually re-initialized at the start of learn(), 
+        #     but this ensures it's correct if you continue immediately)
+        if model.policy.optimizer is not None:
+            for pg in model.policy.optimizer.param_groups:
+                pg['lr'] = learning_rate
     else:
         model = MaskablePPO(
             "CnnPolicy",
@@ -208,7 +220,7 @@ def main():
                         help="Learning rate")
     parser.add_argument("--batch-size", type=int, default=64,
                         help="Batch size")
-    parser.add_argument("--seed", type=int, default=42,
+    parser.add_argument("--seed", type=int, default=None,
                         help="Random seed")
     parser.add_argument("--save-freq", type=int, default=50_000,
                         help="Checkpoint save frequency")

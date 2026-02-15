@@ -12,3 +12,5 @@ tensorboard>=2.14.0
 
 # Game dependencies
 pygame>=2.5.0
+
+numba>=0.55.0

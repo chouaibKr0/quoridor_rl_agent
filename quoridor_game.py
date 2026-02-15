@@ -286,26 +286,38 @@ class QuoridorGame:
 
     def _calculate_reward(self, valid_move, p1_dist_curr, p2_dist_curr):
         if not valid_move:
-            return -0.1
-        
-        p1_progress = self.p1_dist_prev - p1_dist_curr
-        p2_damage = p2_dist_curr - self.p2_dist_prev
-        p2_progress = self.p2_dist_prev - p2_dist_curr
-        p1_damage = p1_dist_curr - self.p1_dist_prev
-        
-        # ASYMMETRIC: favor own progress over blocking
+            return -0.5  # Increase penalty for invalid moves to force learning valid rules
+
+        # Calculate raw changes (positive = good for that player)
+        # Distance decreased = Progress
+        p1_diff = self.p1_dist_prev - p1_dist_curr
+        p2_diff = self.p2_dist_prev - p2_dist_curr
+
         if self.current_player == 1:
-            shaping = 0.07 * p1_progress + 0.03 * p2_damage  # 70/30 split
+            my_progress = p1_diff
+            opp_setback = -p2_diff  # Negative p2_diff means p2 distance increased (good for p1)
         else:
-            shaping = 0.07 * p2_progress + 0.03 * p1_damage
+            my_progress = p2_diff
+            opp_setback = -p1_diff
+
+        # Weights
+        w_progress = 1.0   # Strong reward for moving to goal
+        w_setback = 1.5    # Even STRONGER reward for hurting opponent (encourage walls)
         
-        # STRONGER step penalty to discourage long games
-        step_cost = -0.03
-        
+        # Shaping
+        shaping = (w_progress * my_progress) + (w_setback * opp_setback)
+
+        # Step cost should be small enough that a good move is still positive
+        step_cost = -0.01 
+
         reward = step_cost + shaping
+        
+        # Huge bonus for winning to override everything else
         if self._check_win():
-            reward += 1.0
+            reward += 10.0
+        
         return reward
+
 
 
     def _check_win(self):
