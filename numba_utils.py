@@ -242,10 +242,12 @@ def compute_legal_moves_mask(
     # Actually, scanning valid_moves is small (max 5 items).
     # Forward check: iterate 0..11, calc target, check if in valid_moves.
     
-    dr = np.array([-1, 0, 1, 0, -2, 0, 2, 0, -1, -1, 1, 1], dtype=np.int32)
-    dc = np.array([0, 1, 0, -1, 0, 2, 0, -2, 1, -1, 1, -1], dtype=np.int32)
+    dr = np.array([-1, 0, 1, 0, -2, 0, 2, 0], dtype=np.int32)
+    dc = np.array([0, 1, 0, -1, 0, 2, 0, -2], dtype=np.int32)
     
-    for a in range(12):
+    # Check only actions 0-7 (Pawn steps and straight jumps)
+    # 8-11 (Diagonal jumps) are disabled per requirements
+    for a in range(8):
         tr = curr_r + dr[a]
         tc = curr_c + dc[a]
         

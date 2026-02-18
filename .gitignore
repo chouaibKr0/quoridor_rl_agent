@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.idea/
+.vscode/
+logs/
+models/quoridor_ppo_*.zip
+!models/quoridor_ppo_final_20260214_142325.zip

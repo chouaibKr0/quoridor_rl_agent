@@ -14,7 +14,7 @@ from typing import Optional, List, Tuple
 import subprocess
 import tkinter as tk
 from tkinter import filedialog
-from quoridor_game import QuoridorGame
+from quoridor_game import QuoridorGame, flip_observation, flip_action, flip_mask
 from ai_agent import get_agent, BaseAgent, RLAgent
 from ui import QuoridorUI
 
@@ -265,24 +265,25 @@ class GameController:
             
         if agent is not None:
             # AI Turn
-            # 1. Get observation
+            # 1. Get observation and mask (normalize for P2)
             obs = self.game._get_observation()
-            # 2. Get action mask
             mask = self.game.get_legal_moves()
             
-            # 3. Get action (add small delay for visuals?)
-            # check limits to avoid freezing UI
-            # For pure AI vs AI visual, maybe limit speed
-            # For Human vs AI, instant is OK but jarring
+            if self.game.current_player == 2:
+                obs = flip_observation(obs)
+                mask = flip_mask(mask)
             
-            # Simple delay if needed:
-            # pygame.time.wait(100) 
-            
+            # 3. Get action
             try:
                 action = agent.select_action(obs, mask)
+
+                # Flip action back to real board if it was P2's turn
+                if self.game.current_player == 2:
+                    action = flip_action(action)
+
                 # 4. Apply
                 self.game.step(action)
-                # wait for 0.8s
+                # wait for 0.8s for visual clarity
                 pygame.time.wait(800)
             except Exception as e:
                 print(f"Error AI Agent {agent}: {e}")
