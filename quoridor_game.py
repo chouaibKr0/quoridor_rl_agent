@@ -7,6 +7,59 @@ import numpy as np
 import collections
 from numba_utils import bfs_distances_numba, check_path_exists_numba, get_valid_neighbors_numba
 
+def flip_observation(obs: np.ndarray) -> np.ndarray:
+    """
+    Flip the observation vertically to normalize perspective.
+    Current player always sees themselves as Player 1 moving from row 0 to 8.
+    """
+    flipped_obs = np.zeros_like(obs)
+
+    # 1. Swap and flip player positions (Channels 0 and 1)
+    flipped_obs[:, :, 0] = np.flip(obs[:, :, 1], axis=0)
+    flipped_obs[:, :, 1] = np.flip(obs[:, :, 0], axis=0)
+
+    # 2. Flip and shift walls (Channels 2 and 3)
+    # H-wall at r (between r, r+1) becomes 7-r (between 8-r, 7-r)
+    flipped_obs[:, :, 2] = np.roll(np.flip(obs[:, :, 2], axis=0), -1, axis=0)
+    flipped_obs[:, :, 3] = np.roll(np.flip(obs[:, :, 3], axis=0), -1, axis=0)
+
+    # 3. Swap and flip distance heatmaps (Channels 4 and 5)
+    # P2 heatmap (dist to 0) becomes dist to 8 on flipped board
+    flipped_obs[:, :, 4] = np.flip(obs[:, :, 5], axis=0)
+    flipped_obs[:, :, 5] = np.flip(obs[:, :, 4], axis=0)
+
+    return flipped_obs
+
+def flip_action(action: int) -> int:
+    """Flip an action vertically to match flipped observation."""
+    if action < 4: # Pawn steps
+        # 0:N, 1:E, 2:S, 3:W -> N and S swap
+        return {0: 2, 2: 0, 1: 1, 3: 3}[action]
+    if action < 8: # Straight jumps
+        # 4:N, 5:E, 6:S, 7:W -> N and S swap
+        return {4: 6, 6: 4, 5: 5, 7: 7}[action]
+    if action < 12: # Diagonal jumps
+        # 8:NE, 9:NW, 10:SE, 11:SW -> N/S swap
+        return {8: 10, 10: 8, 9: 11, 11: 9}[action]
+    if action < 76: # H-walls
+        idx = action - 12
+        r, c = idx // 8, idx % 8
+        return 12 + (7 - r) * 8 + c
+    if action < 140: # V-walls
+        idx = action - 76
+        r, c = idx // 8, idx % 8
+        return 76 + (7 - r) * 8 + c
+    return action
+
+def flip_mask(mask: np.ndarray) -> np.ndarray:
+    """Flip the entire 140-dim action mask."""
+    flipped_mask = np.zeros_like(mask)
+    # Use the mapping to flip each bit in the mask
+    for i in range(140):
+        if mask[i] > 0:
+            flipped_mask[flip_action(i)] = mask[i]
+    return flipped_mask
+
 class QuoridorStateBuilder:
     # TODO: Review carefully this class
     def __init__(self):
@@ -300,19 +353,20 @@ class QuoridorGame:
             my_progress = p2_diff
             opp_setback = -p1_diff
 
-        # Weights
-        w_progress = 1.0   # Strong reward for moving to goal
-        w_setback = 1.5    # Even STRONGER reward for hurting opponent (encourage walls)
+        # Weights - Reduced to ensure win/loss is the primary signal
+        w_progress = 0.1
+        w_setback = 0.05
         
         # Shaping
         shaping = (w_progress * my_progress) + (w_setback * opp_setback)
 
-        # Step cost should be small enough that a good move is still positive
+        # Step cost
         step_cost = -0.01 
 
         reward = step_cost + shaping
         
-        # Huge bonus for winning to override everything else
+        # Huge bonus for winning
+        # Note: Loss penalty is handled in the environment wrapper
         if self._check_win():
             reward += 10.0
         
@@ -330,74 +384,20 @@ class QuoridorGame:
     def get_legal_moves(self):
         """
         Returns a binary mask [140] of valid actions.
+        Uses Numba optimized logic for speed.
         """
-        mask = np.zeros(140, dtype=np.float32)
-        
-        # 1. Pawn Moves (0-11)
-        curr = self.p1_pos if self.current_player == 1 else self.p2_pos
-        opp = self.p2_pos if self.current_player == 1 else self.p1_pos
-        
-        valid_targets = self._get_valid_pawn_moves(curr, opp)
-        
-        deltas = {
-            0: (-1, 0), 1: (0, 1), 2: (1, 0), 3: (0, -1),
-            4: (-2, 0), 5: (0, 2), 6: (2, 0), 7: (0, -2),
-            #8: (-1, 1), 9: (-1, -1), 10: (1, 1), 11: (1, -1) mask diagonal moves
-        }
-        for a_idx, (dr, dc) in deltas.items():
-            t_r, t_c = curr[0] + dr, curr[1] + dc
-            if (t_r, t_c) in valid_targets:
-                mask[a_idx] = 1.0
-
-        # 2. Wall Moves (12-139)
         walls_left = self.p1_walls_left if self.current_player == 1 else self.p2_walls_left
         
-        if walls_left > 0:
-            # We use Numba's checks which are much faster.
-            
-            for w_idx in range(128):
-                wall_type = 'h' if w_idx < 64 else 'v'
-                local_idx = w_idx if w_idx < 64 else w_idx - 64
-                r = local_idx // 8
-                c = local_idx % 8
-                
-                is_valid_pos = True
-                
-                if wall_type == 'h':
-                    if self.h_walls_mask[r, c] == 1: is_valid_pos = False
-                    elif c > 0 and self.h_walls_mask[r, c-1] == 1: is_valid_pos = False 
-                    elif c < 8 and self.h_walls_mask[r, c+1] == 1: is_valid_pos = False 
-                    if self.v_walls_mask[r, c] == 1: is_valid_pos = False
-                else:
-                    if self.v_walls_mask[r, c] == 1: is_valid_pos = False
-                    if r > 0 and self.v_walls_mask[r-1, c] == 1: is_valid_pos = False
-                    if r < 8 and self.v_walls_mask[r+1, c] == 1: is_valid_pos = False
-                    if self.h_walls_mask[r, c] == 1: is_valid_pos = False
-                    
-                if not is_valid_pos:
-                    continue
+        from numba_utils import compute_legal_moves_mask
 
-                # B. Path Blocking Check
-                if wall_type == 'h': 
-                    self.h_walls_mask[r, c] = 1
-                else: 
-                    self.v_walls_mask[r, c] = 1
-                
-                # Check Path with new wall using Numba
-                has_p1 = check_path_exists_numba(self.p1_pos[0], self.p1_pos[1], 8, self.h_walls_mask, self.v_walls_mask)
-                
-                if has_p1:
-                    has_p2 = check_path_exists_numba(self.p2_pos[0], self.p2_pos[1], 0, self.h_walls_mask, self.v_walls_mask)
-                    if has_p2:
-                        mask[12 + w_idx] = 1.0
-                
-                # Revert
-                if wall_type == 'h': 
-                    self.h_walls_mask[r, c] = 0
-                else: 
-                    self.v_walls_mask[r, c] = 0
-
-        return mask
+        return compute_legal_moves_mask(
+            self.p1_pos[0], self.p1_pos[1],
+            self.p2_pos[0], self.p2_pos[1],
+            self.current_player,
+            walls_left,
+            self.h_walls_mask,
+            self.v_walls_mask
+        )
     
     def _has_path(self, start_pos, goal_row, walls_h, walls_v):
         """

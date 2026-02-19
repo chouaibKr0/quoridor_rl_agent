@@ -8,7 +8,7 @@ from gymnasium import spaces
 import numpy as np
 from typing import Optional, Tuple, Dict, Any
 
-from quoridor_game import QuoridorGame
+from quoridor_game import QuoridorGame, flip_observation, flip_action, flip_mask
 
 
 class QuoridorEnv(gym.Env):
@@ -85,12 +85,12 @@ class QuoridorEnv(gym.Env):
         """
         Execute one step in the environment.
         
-        For self-play (opponent=None): alternates between players.
-        With opponent: agent is always player 1, opponent responds immediately.
+        Agent is always player 1 (starts at row 0, moving to 8).
+        Opponent responds immediately if present.
         """
         self.steps += 1
         
-        # Player 1's action
+        # Player 1's action (Agent)
         obs, reward, done, info = self.game.step(action)
         
         if done:
@@ -98,20 +98,27 @@ class QuoridorEnv(gym.Env):
         
         # If we have an opponent and it's now player 2's turn
         if self.opponent is not None and self.game.current_player == 2:
-            # Get opponent's action
-            opp_mask = self.game.get_legal_moves()
-            opp_action = self.opponent.select_action(obs, opp_mask)
+            # Normalize perspective for the opponent
+            opp_obs = flip_observation(obs)
+            opp_mask = flip_mask(self.game.get_legal_moves())
+
+            # Get opponent's action (it thinks it is player 1)
+            opp_action_perspective = self.opponent.select_action(opp_obs, opp_mask)
+
+            # Flip action back to real board coordinates
+            opp_action = flip_action(opp_action_perspective)
             
             # Execute opponent's action
             obs, opp_reward, done, info = self.game.step(opp_action)
             
             # Reward from agent's perspective (opponent winning is bad)
             if done and self.game.p2_pos[0] == 0:
-                reward -= 1.0  # Opponent won
+                reward -= 10.0  # Opponent won
         
         # Check truncation
         truncated = self.steps >= self.max_steps
         
+        # Observation for agent (always P1)
         observation = self._get_obs()
         info = self._get_info()
         
@@ -135,11 +142,12 @@ class QuoridorEnv(gym.Env):
     def action_masks(self) -> np.ndarray:
         """
         Return valid action mask for MaskablePPO.
-        
-        Returns:
-            Binary mask of shape (140,) where 1 = valid action.
+        Always returns mask from the perspective of the current player.
         """
-        return self.game.get_legal_moves().astype(bool)
+        mask = self.game.get_legal_moves()
+        if self.game.current_player == 2:
+            return flip_mask(mask).astype(bool)
+        return mask.astype(bool)
     
     def render(self):
         """Render the current game state."""
@@ -181,20 +189,34 @@ class SelfPlayEnv(QuoridorEnv):
     """
     Self-play environment where the agent plays against a copy of itself.
     
-    Each step alternates between players. The observation is from the
-    perspective of the current player (board is NOT flipped for simplicity).
+    Each step alternates between players. The observation is always from the
+    perspective of the current player (normalized so they are Player 1).
     """
     
     def __init__(self, render_mode: Optional[str] = None, max_steps: int = 200):
         super().__init__(opponent=None, render_mode=render_mode, max_steps=max_steps)
+
+    def _get_obs(self) -> np.ndarray:
+        """Get the current observation from the perspective of the current player."""
+        obs = self.game._get_observation()
+        if self.game.current_player == 2:
+            return flip_observation(obs)
+        return obs
     
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """Execute one step - returns observation for the next player."""
         self.steps += 1
         
-        obs, reward, done, info = self.game.step(action)
+        # If it's Player 2's turn, the action is in their perspective, so flip it back
+        real_action = action
+        if self.game.current_player == 2:
+            real_action = flip_action(action)
+
+        obs, reward, done, info = self.game.step(real_action)
         
         truncated = self.steps >= self.max_steps
+
+        # Observation for the next player
         observation = self._get_obs()
         info = self._get_info()
         

@@ -85,13 +85,10 @@ class DijkstraAgent(BaseAgent):
         }
     
     def select_action(self, observation: np.ndarray, action_mask: np.ndarray) -> int:
-        # Get current position from observation
-        if self.player == 1:
-            pos_channel = observation[:, :, 0]
-            dist_channel = observation[:, :, 4]  # P1 distance to goal
-        else:
-            pos_channel = observation[:, :, 1]
-            dist_channel = observation[:, :, 5]  # P2 distance to goal
+        # Perspective is now normalized by the environment.
+        # Agent always sees itself as the primary player (Channel 0).
+        pos_channel = observation[:, :, 0]
+        dist_channel = observation[:, :, 4]  # Current player distance to goal
 
         # Find current position
         curr_pos = np.unravel_index(np.argmax(pos_channel), pos_channel.shape)
@@ -159,15 +156,11 @@ class StrategicAgent(BaseAgent):
         self.state_builder = QuoridorStateBuilder()
         
     def select_action(self, observation: np.ndarray, action_mask: np.ndarray) -> int:
-        # 1. Identify Opponent Info
-        if self.player == 1:
-            opp_pos_channel = observation[:, :, 1]
-            opp_goal_row = 0
-            # Opponent is P2. P2 goal is row 0.
-        else:
-            opp_pos_channel = observation[:, :, 0]
-            opp_goal_row = 8
-            # Opponent is P1. P1 goal is row 8.
+        # Perspective is now normalized.
+        # Agent is always "Player 1" (Channel 0), Opponent is "Player 2" (Channel 1).
+        # Opponent's goal is row 0 from this perspective.
+        opp_pos_channel = observation[:, :, 1]
+        opp_goal_row = 0
             
         opp_pos = np.unravel_index(np.argmax(opp_pos_channel), opp_pos_channel.shape)
         
@@ -294,15 +287,10 @@ class MinimaxAgent(BaseAgent):
         Evaluate an action based on resulting position.
         Higher score = better for this player.
         """
-        # Get distance channels
-        if self.player == 1:
-            my_dist = observation[:, :, 4]
-            opp_dist = observation[:, :, 5]
-            my_pos = observation[:, :, 0]
-        else:
-            my_dist = observation[:, :, 5]
-            opp_dist = observation[:, :, 4]
-            my_pos = observation[:, :, 1]
+        # Perspective is now normalized.
+        my_dist = observation[:, :, 4]
+        opp_dist = observation[:, :, 5]
+        my_pos = observation[:, :, 0]
         
         # Current position
         curr_pos = np.unravel_index(np.argmax(my_pos), my_pos.shape)
