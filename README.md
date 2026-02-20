@@ -26,7 +26,7 @@ Random Opponent → Dijkstra → Strategic → Self-Play
 
 The agent learns progressively against increasingly sophisticated opponents, culminating in self-play for mastery.
 
-The current implementation only support traing on only one agent (e,g,. trained on Dijkstra)
+The current implementation only support traing on only one agent at once (e,g,. trained on Dijkstra) thus no automated learnig pipline
 
 ### State Representation
 The 9×9×6 observation tensor encodes:
@@ -48,7 +48,8 @@ python main.py
 ```
 
 The UI menu allows flexible matchmaking:
-- **Human vs AI**: Test your skills against trained agents
+- **Human vs Human**: As an extra feature
+- **Human vs AI**: Test your skills against an agents whther is it an RL agent or not
 - **AI vs AI**: Watch different agents compete
 - **RL Model Selection**: Choose from trained models or load custom checkpoints
 
@@ -62,16 +63,22 @@ The UI menu allows flexible matchmaking:
 ### Train New Agent
 ```bash
 # Train against Random opponent (baseline)
-python train.py --opponent random --steps 50000
+python train.py --opponent random --timesteps 50000
 
 # Train against Dijkstra
-python train.py --opponent dijkstra --steps 200000
+python train.py --opponent dijkstra --timesteps 200000
+
+# Train against Strategic
+python train.py --opponent strategic --timesteps 500000
+
+# Or Mixed traing (aginst both Dijkstra and Strategic)  with --opponent mixed
 
 # Self-play training
-python train.py --opponent selfplay --steps 500000
+python train.py --opponent selfplay --timesteps 500000
 
-# Continue training from existing model (transfer learning)
-python train.py --load-model models/quoridor_ppo_final_20260207_133610.zip --opponent dijkstra --timesteps 100000
+
+# Continue training from existing model (load model and resume training)
+python train.py --load-model models/quoridor_ppo_final_20260207_133610.zip --opponent strategic --timesteps 100000
 ```
 
 Models are saved to `models/` with naming convention: `models/quoridor_ppo_final_{date}_{time}.zip`
@@ -93,7 +100,7 @@ quoridor_rl_agent/
 ├── quoridor_game.py        # Core game logic and state management
 ├── quoridor_env.py         # Gymnasium environment wrapper
 ├── feature_extractor.py    # Custom CNN architecture
-├── ai_agent.py             # Baseline agents (Random, Dijkstra, Strategic, Minimax)
+├── ai_agent.py             # Baseline agents (Random, Dijkstra, Strategic...)
 ├── train.py                # Training script with curriculum learning
 ├── evaluate.py             # Agent evaluation utilities
 ├── ui.py                   # Pygame rendering and UI
@@ -103,23 +110,25 @@ quoridor_rl_agent/
 ## Key Features
 
 ### Action Masking
-The environment computes valid actions dynamically, masking illegal moves (occupied squares, blocked paths, invalid walls). This significantly accelerates learning by preventing the agent from wasting exploration on invalid actions.
+The environment computes valid actions dynamically, masking illegal moves (occupied squares, blocked paths, invalid walls). This accelerates learning by preventing the agent from wasting exploration on invalid actions.
 
 ### Reward Shaping
 ```python
-reward = -0.01 (time penalty)
-       + 0.05 * (progress_toward_goal + opponent_hindrance)
-       + 1.0  (win bonus)
+shaping = (0.1 * Δ_player_progress) + (0.05 * Δ_opponent_setback)
+if player_wins:
+  reword = 10.0 + shaping
+elif player_losts:
+  reword = -10.0 + shaping
+else:
+  reword = -0.01 + shaping
 ```
 
-Encourages efficient play while balancing offensive and defensive strategies.
+Encourages efficient play and offensive strategies.
 
 ### Opponent Agents
 - **Random**: Uniform sampling over legal actions
-- **Dijkstra**: Greedy shortest-path movement
+- **Dijkstra**: Greedy shortest-path movement (no wall placement)
 - **Strategic**: Dijkstra + opportunistic wall blocking
-- **Minimax**: Limited-depth game tree search
-- **Self-Play**: Previous checkpoint of the RL agent
 
 ## License
 
