@@ -362,7 +362,7 @@ def get_agent(name: str, player: int = 2, seed: Optional[int] = None, model_path
 
     rng = np.random.default_rng(seed) 
     agents = {
-        'mixed': lambda: DijkstraAgent(player, seed=seed) if rng.random() < 0.8 else StrategicAgent(player, seed=seed),
+        'mixed': lambda: DijkstraAgent(player, seed=seed) if rng.random() < 0.6 else StrategicAgent(player, seed=seed),
         'random': lambda: RandomAgent(seed=seed),
         'dijkstra': lambda: DijkstraAgent(player=player, seed=seed),
         'strategic': lambda: StrategicAgent(player=player, seed=seed),
