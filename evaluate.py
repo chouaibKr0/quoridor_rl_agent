@@ -10,8 +10,9 @@ from typing import Optional
 import numpy as np
 from sb3_contrib import MaskablePPO
 
-from quoridor_env import QuoridorEnv
-from ai_agent import get_agent, BaseAgent
+from core.env import QuoridorEnv
+from solvers.registry import get_agent
+from solvers.base import BaseAgent
 
 DETERMINISTIC = False
 

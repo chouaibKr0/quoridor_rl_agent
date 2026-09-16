@@ -16,9 +16,9 @@ from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import get_schedule_fn
-from quoridor_env import QuoridorEnv, SelfPlayEnv
+from core.env import QuoridorEnv, SelfPlayEnv
 from feature_extractor import QuoridorCNN, QuoridorResidualCNN
-from ai_agent import get_agent
+from solvers.registry import get_agent
 
 
 def mask_fn(env):

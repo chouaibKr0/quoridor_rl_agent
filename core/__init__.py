@@ -1,0 +1,3 @@
+"""
+Core Quoridor Game Package.
+"""

@@ -14,7 +14,7 @@ from typing import Optional, List, Tuple
 import subprocess
 import tkinter as tk
 from tkinter import filedialog
-from quoridor_game import QuoridorGame, flip_observation, flip_action, flip_mask
+from core.game import QuoridorGame, flip_observation, flip_action, flip_mask
 from ai_agent import get_agent, BaseAgent, RLAgent
 from ui import QuoridorUI
 
