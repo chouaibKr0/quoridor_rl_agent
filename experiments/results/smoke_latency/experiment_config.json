@@ -1,0 +1,20 @@
+{
+  "experiment_name": "smoke_latency",
+  "solver_a": {
+    "type": "mcts",
+    "config": {
+      "simulations": 50
+    }
+  },
+  "solver_b": {
+    "type": "dijkstra",
+    "config": {}
+  },
+  "n_games": 3,
+  "seed": 0,
+  "output_dir": "experiments/results/",
+  "record_games": true,
+  "record_telemetry": true,
+  "latency_budget_ms": 200.0,
+  "swap_sides": true
+}

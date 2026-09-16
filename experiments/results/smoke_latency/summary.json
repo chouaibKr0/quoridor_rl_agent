@@ -1,0 +1,11 @@
+{
+  "experiment_name": "smoke_latency",
+  "n_games": 3,
+  "wins_a": 0,
+  "wins_b": 3,
+  "draws": 0,
+  "win_rate_a": 0.0,
+  "win_rate_b": 1.0,
+  "draw_rate": 0.0,
+  "total_duration_s": 20.93
+}

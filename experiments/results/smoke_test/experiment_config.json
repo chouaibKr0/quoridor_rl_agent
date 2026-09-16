@@ -1,0 +1,18 @@
+{
+  "experiment_name": "smoke_test",
+  "solver_a": {
+    "type": "random",
+    "config": {}
+  },
+  "solver_b": {
+    "type": "dijkstra",
+    "config": {}
+  },
+  "n_games": 5,
+  "seed": 0,
+  "output_dir": "experiments/results/",
+  "record_games": true,
+  "record_telemetry": true,
+  "latency_budget_ms": null,
+  "swap_sides": true
+}

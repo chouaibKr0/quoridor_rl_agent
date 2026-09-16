@@ -1,0 +1,252 @@
+{
+  "game_id": 0,
+  "solver_a": "ppo",
+  "solver_b": "dijkstra",
+  "solver_a_config": {
+    "model_path": "./models/e2e/e2e_ppo_final.zip"
+  },
+  "solver_b_config": {},
+  "a_is_player_1": true,
+  "winner": "b",
+  "n_moves": 18,
+  "moves": [
+    129,
+    0,
+    71,
+    0,
+    17,
+    0,
+    60,
+    0,
+    90,
+    0,
+    122,
+    0,
+    49,
+    0,
+    86,
+    3,
+    37,
+    0
+  ],
+  "per_move_stats": {
+    "solver_a": [
+      {
+        "elapsed_ms": 1.68,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.544,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.66,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.512,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.35,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.278,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.734,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.637,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.399,
+        "budget_exceeded": false
+      }
+    ],
+    "solver_b": [
+      {
+        "elapsed_ms": 0.133,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.094,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.121,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.067,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.07,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.068,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.104,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.076,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.058,
+        "budget_exceeded": false
+      }
+    ]
+  },
+  "telemetry": {
+    "turn": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "walls_a_cumulative": [
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4,
+      4,
+      5,
+      5,
+      6,
+      6,
+      7,
+      7,
+      8,
+      8,
+      9,
+      9
+    ],
+    "walls_b_cumulative": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "path_len_a": [
+      8,
+      8,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "path_len_b": [
+      8,
+      7,
+      7,
+      6,
+      6,
+      5,
+      5,
+      4,
+      4,
+      3,
+      3,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    "delta_L_a": [
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null
+    ],
+    "delta_L_b": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

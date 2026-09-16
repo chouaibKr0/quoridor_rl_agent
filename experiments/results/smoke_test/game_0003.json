@@ -1,0 +1,310 @@
+{
+  "game_id": 3,
+  "solver_a": "random",
+  "solver_b": "dijkstra",
+  "solver_a_config": {},
+  "solver_b_config": {},
+  "a_is_player_1": false,
+  "winner": "b",
+  "n_moves": 23,
+  "moves": [
+    2,
+    39,
+    2,
+    56,
+    1,
+    126,
+    1,
+    51,
+    2,
+    42,
+    3,
+    132,
+    2,
+    85,
+    1,
+    122,
+    2,
+    92,
+    2,
+    113,
+    2,
+    0,
+    2
+  ],
+  "per_move_stats": {
+    "solver_a": [
+      {
+        "elapsed_ms": 0.049,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.03,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.027,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.042,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.028,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.025,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.028,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.035,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.039,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.042,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.025,
+        "budget_exceeded": false
+      }
+    ],
+    "solver_b": [
+      {
+        "elapsed_ms": 0.052,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.069,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.044,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.043,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.052,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.053,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.045,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.092,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.048,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.043,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.072,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.04,
+        "budget_exceeded": false
+      }
+    ]
+  },
+  "telemetry": {
+    "turn": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22
+    ],
+    "walls_a_cumulative": [
+      0,
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4,
+      4,
+      5,
+      5,
+      6,
+      6,
+      7,
+      7,
+      8,
+      8,
+      9,
+      9,
+      10,
+      10,
+      10,
+      10
+    ],
+    "walls_b_cumulative": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "path_len_a": [
+      8,
+      9,
+      9,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      9
+    ],
+    "path_len_b": [
+      7,
+      8,
+      7,
+      8,
+      7,
+      7,
+      6,
+      6,
+      5,
+      7,
+      6,
+      6,
+      5,
+      5,
+      4,
+      4,
+      3,
+      3,
+      2,
+      2,
+      1,
+      1,
+      0
+    ],
+    "delta_L_a": [
+      null,
+      1,
+      null,
+      1,
+      null,
+      0,
+      null,
+      0,
+      null,
+      2,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      null,
+      null
+    ],
+    "delta_L_b": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

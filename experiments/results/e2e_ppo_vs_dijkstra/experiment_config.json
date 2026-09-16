@@ -1,0 +1,20 @@
+{
+  "experiment_name": "e2e_ppo_vs_dijkstra",
+  "solver_a": {
+    "type": "ppo",
+    "config": {
+      "model_path": "./models/e2e/e2e_ppo_final.zip"
+    }
+  },
+  "solver_b": {
+    "type": "dijkstra",
+    "config": {}
+  },
+  "n_games": 4,
+  "seed": 42,
+  "output_dir": "experiments/results/",
+  "record_games": true,
+  "record_telemetry": true,
+  "latency_budget_ms": null,
+  "swap_sides": true
+}

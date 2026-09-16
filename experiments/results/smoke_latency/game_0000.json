@@ -1,0 +1,244 @@
+{
+  "game_id": 0,
+  "solver_a": "mcts",
+  "solver_b": "dijkstra",
+  "solver_a_config": {
+    "simulations": 50
+  },
+  "solver_b_config": {},
+  "a_is_player_1": true,
+  "winner": "b",
+  "n_moves": 16,
+  "moves": [
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    2,
+    0,
+    0,
+    0,
+    2,
+    0,
+    0,
+    0
+  ],
+  "per_move_stats": {
+    "solver_a": [
+      {
+        "elapsed_ms": 912.5488899999254,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 938.5919700007435,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 874.4671869999365,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 803.7790859998495,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 629.6433170000455,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 548.221986999124,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 550.8684269998412,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      },
+      {
+        "elapsed_ms": 416.7094369995539,
+        "budget_exceeded": true,
+        "simulations_run": 50,
+        "nodes_expanded": 50
+      }
+    ],
+    "solver_b": [
+      {
+        "elapsed_ms": 0.055,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.05,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.053,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.049,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.048,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.09,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.05,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.052,
+        "budget_exceeded": false
+      }
+    ]
+  },
+  "telemetry": {
+    "turn": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "walls_a_cumulative": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "walls_b_cumulative": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "path_len_a": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      7,
+      7,
+      8,
+      8,
+      7,
+      7,
+      8,
+      8
+    ],
+    "path_len_b": [
+      8,
+      7,
+      7,
+      6,
+      6,
+      5,
+      5,
+      4,
+      4,
+      3,
+      3,
+      2,
+      2,
+      1,
+      1,
+      0
+    ],
+    "delta_L_a": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "delta_L_b": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

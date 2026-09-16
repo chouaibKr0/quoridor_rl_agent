@@ -1,0 +1,11 @@
+{
+  "experiment_name": "e2e_ppo_vs_dijkstra",
+  "n_games": 4,
+  "wins_a": 0,
+  "wins_b": 4,
+  "draws": 0,
+  "win_rate_a": 0.0,
+  "win_rate_b": 1.0,
+  "draw_rate": 0.0,
+  "total_duration_s": 1.1
+}

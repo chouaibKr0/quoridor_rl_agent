@@ -1,0 +1,192 @@
+{
+  "game_id": 3,
+  "solver_a": "ppo",
+  "solver_b": "dijkstra",
+  "solver_a_config": {
+    "model_path": "./models/e2e/e2e_ppo_final.zip"
+  },
+  "solver_b_config": {},
+  "a_is_player_1": false,
+  "winner": "b",
+  "n_moves": 13,
+  "moves": [
+    2,
+    0,
+    2,
+    75,
+    2,
+    43,
+    2,
+    17,
+    2,
+    85,
+    2,
+    103,
+    6
+  ],
+  "per_move_stats": {
+    "solver_a": [
+      {
+        "elapsed_ms": 1.85,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.262,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.177,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.793,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.456,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 1.2,
+        "budget_exceeded": false
+      }
+    ],
+    "solver_b": [
+      {
+        "elapsed_ms": 0.15,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.077,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.061,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.06,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.104,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.078,
+        "budget_exceeded": false
+      },
+      {
+        "elapsed_ms": 0.062,
+        "budget_exceeded": false
+      }
+    ]
+  },
+  "telemetry": {
+    "turn": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "walls_a_cumulative": [
+      0,
+      0,
+      0,
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4,
+      4,
+      5,
+      5
+    ],
+    "walls_b_cumulative": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "path_len_a": [
+      8,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+    ],
+    "path_len_b": [
+      7,
+      7,
+      6,
+      6,
+      5,
+      5,
+      4,
+      4,
+      3,
+      3,
+      2,
+      2,
+      0
+    ],
+    "delta_L_a": [
+      null,
+      null,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null,
+      0,
+      null
+    ],
+    "delta_L_b": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

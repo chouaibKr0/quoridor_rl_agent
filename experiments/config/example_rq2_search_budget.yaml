@@ -1,0 +1,17 @@
+experiment_name: "rq2_search_budget_sample"
+solver_a:
+  type: "mcts"
+  config:
+    simulations: 200
+    rollout_policy: "random"
+solver_b:
+  type: "alphabeta"
+  config:
+    depth: 2
+n_games: 10
+seed: 42
+latency_budget_ms: 100.0
+output_dir: "experiments/results/"
+record_games: true
+record_telemetry: true
+swap_sides: true
