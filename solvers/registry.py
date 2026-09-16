@@ -100,8 +100,12 @@ def get_agent(name: str, player: int = 2, seed: Optional[int] = None, model_path
 def _ensure_solvers_registered():
     """Import subpackages to trigger module-level register_solver calls."""
     try:
-        import solvers.heuristic.random_agent
-        import solvers.heuristic.dijkstra_agent
-        import solvers.heuristic.strategic_agent
+        import solvers.heuristic
+        import solvers.search
     except ImportError:
         pass
+    try:
+        import solvers.rl
+    except ImportError:
+        pass
+

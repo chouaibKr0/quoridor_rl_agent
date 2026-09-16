@@ -108,6 +108,28 @@ class QuoridorGame:
         
         return state
 
+    def clone(self) -> "QuoridorGame":
+        """
+        Create a deep copy of internal game state without re-running Numba JIT.
+        Fast state snapshot mechanism for tree search solvers (MCTS / Minimax).
+        """
+        new_game = QuoridorGame.__new__(QuoridorGame)
+        new_game.initial_walls = self.initial_walls
+        new_game.state_builder = self.state_builder
+        new_game.p1_pos = self.p1_pos
+        new_game.p2_pos = self.p2_pos
+        new_game.p1_walls_left = self.p1_walls_left
+        new_game.p2_walls_left = self.p2_walls_left
+        new_game.walls_h = list(self.walls_h)
+        new_game.walls_v = list(self.walls_v)
+        new_game.h_walls_mask = self.h_walls_mask.copy()
+        new_game.v_walls_mask = self.v_walls_mask.copy()
+        new_game.current_player = self.current_player
+        new_game.done = self.done
+        new_game.p1_dist_prev = self.p1_dist_prev
+        new_game.p2_dist_prev = self.p2_dist_prev
+        return new_game
+
     def _get_observation(self) -> np.ndarray:
         """Helper to build the 9x9x6 Tensor from internal variables."""
         return self.state_builder.build_state(
