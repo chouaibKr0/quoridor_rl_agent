@@ -1,136 +1,91 @@
-# Quoridor RL Solver
+# Quoridor RL Agent (V2)
 
-A reinforcement learning agent that masters the board game [Quoridor](https://en.wikipedia.org/wiki/Quoridor) using Proximal Policy Optimization (PPO) with action masking.
+A comprehensive reinforcement learning and AI search framework that masters the board game [Quoridor](https://en.wikipedia.org/wiki/Quoridor). 
+
+V2 introduces a modular architecture, a plug-and-play solver registry, automated curriculum learning, and a statistical experiment runner for evaluating AI agents.
 
 ## Overview
 
-This project implements a complete RL training pipeline for Quoridor, featuring:
-- **Custom Gymnasium environment** with intelligent action masking
-- **CNN-based feature extraction** for spatial board understanding
-- **Self-play training** with curriculum learning (3 opponent types)
-- **Interactive UI** for human vs AI gameplay
+This project implements a complete AI pipeline for Quoridor:
+- **Core Engine**: Fast, Numba-accelerated game rules and state management.
+- **Gymnasium Environment**: Custom RL environment with intelligent action masking.
+- **Multiple AI Solvers**: Heuristic, Tree-Search (Minimax, AlphaBeta, MCTS), and Neural Network (MaskablePPO) agents.
+- **Experiment Framework**: Config-driven tournament system with rich telemetry (path lengths, nodes expanded).
+- **Interactive UI**: Play against AI, watch AI vs AI, or replay saved game records step-by-step.
 
-## RL Approach
+## Project Structure
 
-### Architecture
-- **Algorithm**: MaskablePPO (PPO with invalid action masking)
-- **Neural Network**: Custom CNN processing 9×9×6 state tensor
-  - 6 channels: P1/P2 positions, H/V walls, distance heatmaps
-- **Action Space**: 140 discrete actions (12 moves + 128 wall placements)
+The codebase is organized into modular packages:
 
-### Training Pipeline
 ```
-Random Opponent → Dijkstra → Strategic → Self-Play
-   (50k steps)     (200k)      (200k)     (500k+)
+quoridor_rl_agent/
+├── core/                   # Game rules, state builder, and Gym environment
+├── solvers/                # AI agents and the solver registry
+│   ├── heuristic/          # Random, Dijkstra, Strategic
+│   ├── search/             # Minimax, Alpha-Beta, MCTS
+│   └── rl/                 # MaskablePPO, Curriculum, CNN extractors
+├── experiments/            # Matchup runner and JSON telemetry recording
+├── analysis/               # Metric computation, TrueSkill ratings, plotting
+├── ui/                     # Pygame interface and game replay
+├── docs/                   # Detailed documentation
+└── models/                 # Saved RL neural network checkpoints
 ```
 
-The agent learns progressively against increasingly sophisticated opponents, culminating in self-play for mastery.
+*For in-depth details on the architecture, solvers, and experiments, see the [docs/](docs/) directory.*
 
-The current implementation only support traing on only one agent at once (e,g,. trained on Dijkstra) thus no automated learnig pipline
+## Quick Start
 
-### State Representation
-The 9×9×6 observation tensor encodes:
-1. Player 1 position (one-hot)
-2. Player 2 position (one-hot)
-3. Horizontal walls
-4. Vertical walls
-5. Player 1 distance heatmap (BFS-computed shortest paths)
-6. Player 2 distance heatmap
-
-This spatial representation enables the CNN to learn strategic wall placement and path planning.
-
-
-## Usage
-
-### Play Against AI
+### Play the Game
+Launch the interactive Pygame UI:
 ```bash
 python main.py
 ```
-
-The UI menu allows flexible matchmaking:
-- **Human vs Human**: As an extra feature
-- **Human vs AI**: Test your skills against an agents whther is it an RL agent or not
-- **AI vs AI**: Watch different agents compete
-- **RL Model Selection**: Choose from trained models or load custom checkpoints
+From the menu, you can select Human vs Human, Human vs AI, or AI vs AI. The solver dropdown automatically populates with all registered agents.
 
 **Controls**:
 - `M`: Move mode (click destination square)
 - `W`: Wall mode (hover and click to place)
 - `H`/`V`: Toggle wall orientation
 - `R`: Reset game
-- `ESC`: Return to menu (during game)
+- `ESC`: Return to menu
 
-### Train New Agent
+### Train the RL Agent
+Train an agent against the `strategic` opponent for 500,000 timesteps:
 ```bash
-# Train against Random opponent (baseline)
-python train.py --opponent random --timesteps 50000
-
-# Train against Dijkstra
-python train.py --opponent dijkstra --timesteps 200000
-
-# Train against Strategic
-python train.py --opponent strategic --timesteps 500000
-
-# Or Mixed traing (aginst both Dijkstra and Strategic)  with --opponent mixed
-
-# Self-play training
-python train.py --opponent selfplay --timesteps 500000
-
-
-# Continue training from existing model (load model and resume training)
-python train.py --load-model models/quoridor_ppo_final_20260207_133610.zip --opponent strategic --timesteps 100000
+python -m solvers.rl.train --opponent strategic --timesteps 500000
 ```
-
-Models are saved to `models/` with naming convention: `models/quoridor_ppo_final_{date}_{time}.zip`
-
-### Evaluate Agent
+Or use the automated curriculum:
 ```bash
-# Evaluate against specific opponent
-python evaluate.py --model models/quoridor_ppo_final_{date}_{time}.zip --opponent dijkstra --episodes 100
-
-# Evaluate against all opponents
-python evaluate.py --model models/quoridor_ppo_final_{date}_{time}.zip --opponent all
+python -m solvers.rl.curriculum --config curriculum.yaml
 ```
 
-## Project Structure
-
-```
-quoridor_rl_agent/
-├── main.py                 # Interactive game UI with agent integration
-├── quoridor_game.py        # Core game logic and state management
-├── quoridor_env.py         # Gymnasium environment wrapper
-├── feature_extractor.py    # Custom CNN architecture
-├── ai_agent.py             # Baseline agents (Random, Dijkstra, Strategic...)
-├── train.py                # Training script with curriculum learning
-├── evaluate.py             # Agent evaluation utilities
-├── ui.py                   # Pygame rendering and UI
-└── models/                 # Trained model checkpoints
+### Run an AI Experiment
+Run a head-to-head matchup between MCTS and Alpha-Beta:
+```bash
+python -m experiments.runner \
+  --solver-a mcts simulations=500 \
+  --solver-b alphabeta depth=2 \
+  --n-games 50 \
+  --name "mcts_vs_alphabeta"
 ```
 
-## Key Features
-
-### Action Masking
-The environment computes valid actions dynamically, masking illegal moves (occupied squares, blocked paths, invalid walls). This accelerates learning by preventing the agent from wasting exploration on invalid actions.
-
-### Reward Shaping
-```python
-shaping = (0.1 * Δ_player_progress) + (0.05 * Δ_opponent_setback)
-if player_wins:
-  reword = 10.0 + shaping
-elif player_losts:
-  reword = -10.0 + shaping
-else:
-  reword = -0.01 + shaping
+### Analyze Results & Replay
+Generate performance plots:
+```bash
+python -m analysis.visualize --results experiments/results/mcts_vs_alphabeta/ --out analysis/plots/
+```
+Replay a specific game in the UI:
+```bash
+python main.py --replay experiments/results/mcts_vs_alphabeta/game_0000.json
 ```
 
-Encourages efficient play and offensive strategies.
+## Documentation
 
-### Opponent Agents
-- **Random**: Uniform sampling over legal actions
-- **Dijkstra**: Greedy shortest-path movement (no wall placement)
-- **Strategic**: Dijkstra + opportunistic wall blocking
+For deep-dives into specific systems, refer to the documentation in `docs/`:
+- [System Architecture](docs/architecture.md)
+- [Solvers & Training (RL, MCTS, Heuristics)](docs/solvers_and_training.md)
+- [Experiments & Analysis Framework](docs/experiments_and_analysis.md)
 
 ## License
 
 MIT
-
